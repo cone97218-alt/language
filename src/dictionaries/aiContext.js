@@ -42,8 +42,8 @@ async function requestAiDict(prompt, config) {
 
 export const aiContextDictionary = registerDictionary({
   id: 'ai-context',
-  name: 'AI 语境精讲',
-  description: '结合当前句子语境解析词性、真实含义与地道用法（按需点击触发）',
+  name: 'AI 精讲',
+  description: '结合当前句子解析词性与语境含义',
   languages: ['*'],
   async lookup(word, { langDef, context, config }) {
     const prompt = [

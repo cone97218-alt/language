@@ -22,11 +22,11 @@ export const jaLanguage = registerLanguage({
   youdaoLang: 'ja',
   defaultDictionaries: ['jotoba', 'wiktionary', 'ai-context'],
   levels: [
-    { id: 'N5', label: 'JLPT N5（入门）', desc: 'Use beginner JLPT N5-level Japanese with simple grammar and basic everyday words.' },
-    { id: 'N4', label: 'JLPT N4（初级）', desc: 'Use JLPT N4-level Japanese with clear conversational expressions.' },
-    { id: 'N3', label: 'JLPT N3（中级日常）', desc: 'Use natural JLPT N3-level intermediate Japanese suitable for everyday conversation and light fiction.' },
-    { id: 'N2', label: 'JLPT N2（中高级）', desc: 'Use natural JLPT N2-level Japanese with rich expressions and nuanced tone.' },
-    { id: 'native', label: '母语级（地道自然）', desc: 'Use completely natural, authentic native Japanese matching the character personality and context.' },
+    { id: 'N5', label: 'JLPT N5', desc: 'Use beginner JLPT N5-level Japanese with simple grammar and basic everyday words.' },
+    { id: 'N4', label: 'JLPT N4', desc: 'Use JLPT N4-level Japanese with clear conversational expressions.' },
+    { id: 'N3', label: 'JLPT N3', desc: 'Use natural JLPT N3-level intermediate Japanese suitable for everyday conversation and light fiction.' },
+    { id: 'N2', label: 'JLPT N2', desc: 'Use natural JLPT N2-level Japanese with rich expressions and nuanced tone.' },
+    { id: 'native', label: '母语级', desc: 'Use completely natural, authentic native Japanese matching the character personality and context.' },
   ],
   tokenize(text) {
     if (jaSegmenter) {

@@ -6,37 +6,40 @@ const STYLE_ID = 'tl-injected-styles';
 const CSS_TEXT = `
 /* ========== Tavern Language: 统一 Design Tokens 与主题变量 ========== */
 :root[data-tl-theme="tavern"] {
-  --tl-bg: var(--SmartThemeBlurTintColor, rgba(24, 26, 34, 0.95));
-  --tl-surface: var(--SmartThemeChatTintColor, rgba(34, 37, 48, 0.9));
-  --tl-surface-soft: color-mix(in srgb, var(--SmartThemeBodyColor, #e8eaf0) 8%, transparent);
+  --tl-bg: var(--SmartThemeBlurTintColor, rgba(24, 26, 34, 0.96));
+  --tl-bg: rgb(from var(--SmartThemeBlurTintColor, #1c1e26) r g b / 0.97);
+  --tl-surface: color-mix(in srgb, var(--SmartThemeBodyColor, #e8eaf0) 5%, var(--tl-bg));
+  --tl-surface-soft: color-mix(in srgb, var(--SmartThemeBodyColor, #e8eaf0) 6%, transparent);
   --tl-text: var(--SmartThemeBodyColor, #e8eaf0);
-  --tl-text-muted: color-mix(in srgb, var(--SmartThemeBodyColor, #e8eaf0) 68%, transparent);
+  --tl-text-muted: color-mix(in srgb, var(--SmartThemeBodyColor, #e8eaf0) 64%, transparent);
   --tl-accent: var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #7aa2f7));
-  --tl-accent-soft: color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #7aa2f7)) 18%, transparent);
-  --tl-border: var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.14));
-  --tl-shadow: 0 10px 30px var(--SmartThemeShadowColor, rgba(0, 0, 0, 0.36));
-  --tl-blur: var(--SmartThemeBlurStrength, 10px);
+  --tl-accent-soft: color-mix(in srgb, var(--SmartThemeQuoteColor, var(--SmartThemeEmColor, #7aa2f7)) 14%, transparent);
+  --tl-border: color-mix(in srgb, var(--SmartThemeBodyColor, #e8eaf0) 12%, transparent);
+  --tl-divider: color-mix(in srgb, var(--SmartThemeBodyColor, #e8eaf0) 8%, transparent);
+  --tl-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  --tl-blur: 18px;
   --tl-radius-lg: 14px;
   --tl-radius-md: 9px;
   --tl-radius-sm: 6px;
-  --tl-pos-noun: #60a5fa;
-  --tl-pos-verb: #34d399;
-  --tl-pos-adj: #f59e0b;
-  --tl-pos-adv: #c084fc;
-  --tl-pos-other: #94a3b8;
+  --tl-pos-noun: #3b82f6;
+  --tl-pos-verb: #10b981;
+  --tl-pos-adj: #d97706;
+  --tl-pos-adv: #9333ea;
+  --tl-pos-other: #64748b;
 }
 
 :root[data-tl-theme="light"] {
-  --tl-bg: rgba(255, 255, 255, 0.98);
-  --tl-surface: #f4f6fa;
-  --tl-surface-soft: rgba(15, 23, 42, 0.05);
+  --tl-bg: #ffffff;
+  --tl-surface: #f7f8fb;
+  --tl-surface-soft: rgba(15, 23, 42, 0.045);
   --tl-text: #1e2433;
-  --tl-text-muted: #5f6b82;
+  --tl-text-muted: #647087;
   --tl-accent: #4668f2;
-  --tl-accent-soft: rgba(70, 104, 242, 0.12);
-  --tl-border: rgba(15, 23, 42, 0.12);
-  --tl-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
-  --tl-blur: 12px;
+  --tl-accent-soft: rgba(70, 104, 242, 0.1);
+  --tl-border: rgba(15, 23, 42, 0.1);
+  --tl-divider: rgba(15, 23, 42, 0.07);
+  --tl-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  --tl-blur: 16px;
   --tl-radius-lg: 14px;
   --tl-radius-md: 9px;
   --tl-radius-sm: 6px;
@@ -48,16 +51,17 @@ const CSS_TEXT = `
 }
 
 :root[data-tl-theme="dark"] {
-  --tl-bg: rgba(24, 26, 33, 0.98);
-  --tl-surface: #21242f;
-  --tl-surface-soft: rgba(255, 255, 255, 0.07);
+  --tl-bg: #1b1d24;
+  --tl-surface: #232631;
+  --tl-surface-soft: rgba(255, 255, 255, 0.06);
   --tl-text: #e7eaf2;
   --tl-text-muted: #98a2b8;
   --tl-accent: #7aa2f7;
-  --tl-accent-soft: rgba(122, 162, 247, 0.18);
-  --tl-border: rgba(255, 255, 255, 0.12);
-  --tl-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
-  --tl-blur: 12px;
+  --tl-accent-soft: rgba(122, 162, 247, 0.16);
+  --tl-border: rgba(255, 255, 255, 0.1);
+  --tl-divider: rgba(255, 255, 255, 0.07);
+  --tl-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+  --tl-blur: 16px;
   --tl-radius-lg: 14px;
   --tl-radius-md: 9px;
   --tl-radius-sm: 6px;
@@ -107,11 +111,11 @@ const CSS_TEXT = `
 .tl-trans-block {
   margin: 5px 0 10px 0;
   padding: 6px 10px;
-  border-left: 2.5px solid var(--tl-accent);
-  background: var(--tl-surface-soft);
+  border-left: 2px solid var(--tl-accent);
+  background: color-mix(in srgb, var(--tl-accent) 6%, transparent);
   color: var(--tl-text-muted);
   font-size: 0.9em;
-  line-height: 1.55;
+  line-height: 1.6;
   border-radius: 0 var(--tl-radius-sm) var(--tl-radius-sm) 0;
   user-select: text;
   word-break: break-word;
@@ -126,15 +130,14 @@ const CSS_TEXT = `
   display: none;
 }
 
-/* ========== 消息正文底部柔和胶囊微栏（替代突兀的顶部编辑栏按钮） ========== */
+/* ========== 消息正文底部纯图标微栏 ========== */
 .tl-mes-footer {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
-  margin-top: 8px;
-  padding-top: 4px;
-  opacity: 0.48;
+  gap: 4px;
+  margin-top: 6px;
+  opacity: 0.45;
   transition: opacity 0.16s ease;
   user-select: none;
 }
@@ -142,29 +145,28 @@ const CSS_TEXT = `
 .mes:hover .tl-mes-footer,
 .tl-mes-footer:hover,
 .tl-mes-footer:has(.tl-active) {
-  opacity: 1;
+  opacity: 0.95;
 }
 
-.tl-footer-pill {
+.tl-footer-icon {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  font-size: 11.5px;
-  line-height: 1.5;
-  border-radius: 999px;
-  border: 1px solid var(--tl-border);
-  background: var(--tl-surface-soft);
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  font-size: 13px;
+  border-radius: var(--tl-radius-sm);
+  border: none;
+  background: transparent;
   color: var(--tl-text-muted);
   cursor: pointer;
   transition: all 0.14s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.tl-footer-pill:hover,
-.tl-footer-pill.tl-active {
+.tl-footer-icon:hover,
+.tl-footer-icon.tl-active {
   color: var(--tl-accent);
-  border-color: var(--tl-accent);
   background: var(--tl-accent-soft);
 }
 
@@ -369,7 +371,7 @@ const CSS_TEXT = `
   justify-content: space-between;
   gap: 8px;
   padding: 12px 14px 8px;
-  border-bottom: 1px solid var(--tl-border);
+  border-bottom: 1px solid var(--tl-divider);
 }
 
 .tl-pop-word-group {
@@ -396,45 +398,45 @@ const CSS_TEXT = `
 
 .tl-pop-brief {
   margin-top: 4px;
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--tl-accent);
-  font-weight: 500;
+  font-weight: 600;
   word-break: break-word;
 }
 
 .tl-pop-actions {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 2px;
   flex-shrink: 0;
 }
 
 .tl-icon-btn {
-  border: 1px solid var(--tl-border);
-  background: var(--tl-surface-soft);
-  color: var(--tl-text);
+  border: none;
+  background: transparent;
+  color: var(--tl-text-muted);
   border-radius: var(--tl-radius-sm);
-  padding: 5px 9px;
-  min-height: 28px;
-  font-size: 12px;
+  padding: 5px 8px;
+  min-width: 30px;
+  min-height: 30px;
+  font-size: 13px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   white-space: nowrap;
-  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+  transition: background-color 0.14s ease, color 0.14s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
 .tl-icon-btn:hover {
   background: var(--tl-accent-soft);
-  border-color: var(--tl-accent);
   color: var(--tl-accent);
 }
 
 .tl-icon-btn:disabled {
-  opacity: 0.35;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
@@ -443,8 +445,28 @@ const CSS_TEXT = `
   flex-wrap: wrap;
   gap: 5px;
   padding: 7px 14px;
-  border-bottom: 1px solid var(--tl-border);
-  background: var(--tl-surface-soft);
+  border-bottom: 1px solid var(--tl-divider);
+  background: transparent;
+}
+
+.tl-loading-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.tl-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.tl-prompt-textarea {
+  min-height: 92px;
+  font-size: 12.5px;
+  line-height: 1.5;
 }
 
 .tl-source-pill {
@@ -544,9 +566,20 @@ const CSS_TEXT = `
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 14px;
-  border-top: 1px solid var(--tl-border);
-  background: var(--tl-surface-soft);
+  padding: 6px 14px;
+  border-top: 1px solid var(--tl-divider);
+  background: transparent;
+}
+
+.tl-pop-footer-label {
+  font-size: 12px;
+  color: var(--tl-text-muted);
+}
+
+.tl-pop-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .tl-sentence-box {
@@ -915,26 +948,24 @@ const CSS_TEXT = `
   }
 
   .tl-mes-footer {
-    opacity: 0.72;
+    opacity: 0.65;
   }
 
-  .tl-footer-pill {
-    padding: 4px 10px;
-    font-size: 12px;
+  .tl-footer-icon {
+    width: 32px;
+    height: 28px;
+    font-size: 14px;
   }
 
   .tl-icon-btn {
-    min-height: 32px;
-    padding: 5px 9px;
-    font-size: 12.5px;
+    min-width: 34px;
+    min-height: 34px;
+    padding: 5px 8px;
+    font-size: 13.5px;
   }
 
   .tl-pop-footer {
-    padding: 9px 12px;
-  }
-
-  .tl-pop-footer .tl-icon-btn {
-    flex: 1;
+    padding: 6px 12px;
   }
 
   .tl-sel-bar {

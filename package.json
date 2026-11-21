@@ -1,6 +1,6 @@
 {
   "name": "tavern-language",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "SillyTavern 酒馆助手沉浸式外语学习插件 — 原生界面无侵入点词查词、选句翻译、双语对照与多语种发音",
   "type": "module",
   "scripts": {

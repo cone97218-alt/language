@@ -26,8 +26,8 @@ function parseJotobaPos(posList) {
 
 export const jotobaDictionary = registerDictionary({
   id: 'jotoba',
-  name: 'Jotoba 日语词典',
-  description: '基于 JMdict 的日语开源词典，提供假名读音、词性、常用度与发音',
+  name: 'Jotoba',
+  description: '日语词典，含假名读音、词性与发音',
   languages: ['ja'],
   async lookup(word) {
     const res = await fetch('https://jotoba.de/api/search/words', {

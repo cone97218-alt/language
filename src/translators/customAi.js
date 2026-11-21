@@ -3,8 +3,8 @@ import { getTavernHelper } from '../core/host.js';
 
 export const customAiTranslator = registerTranslator({
   id: 'custom-ai',
-  name: '自定义 AI 模型（高质量语境翻译）',
-  description: '使用自定义 OpenAI 兼容接口（如 DeepSeek / GPT-4o-mini / Gemini）翻译，自然地道',
+  name: '自定义 AI',
+  description: '使用自定义 OpenAI 兼容接口翻译',
   async translate(text, { from, to = '简体中文', context, config }) {
     const ai = config?.customAi || {};
     if (!ai.apiKey || !ai.baseUrl || !ai.model) {
@@ -41,8 +41,8 @@ export const customAiTranslator = registerTranslator({
 
 export const tavernAiTranslator = registerTranslator({
   id: 'tavern-ai',
-  name: '酒馆当前 API（大模型语境翻译）',
-  description: '直接调用酒馆当前连接的模型进行高质量翻译，无需额外 Key',
+  name: '酒馆 API',
+  description: '使用酒馆当前连接的模型翻译',
   async translate(text, { from, to = '简体中文' }) {
     const helper = getTavernHelper();
     if (!helper || typeof helper.generateRaw !== 'function') {

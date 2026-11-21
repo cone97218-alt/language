@@ -14,11 +14,11 @@ export const frLanguage = registerLanguage({
   youdaoLang: 'fr',
   defaultDictionaries: ['wiktionary', 'ai-context'],
   levels: [
-    { id: 'A2', label: 'A2 初级（基础日常）', desc: 'Use clear A2-level French with simple sentences and everyday vocabulary.' },
-    { id: 'B1', label: 'B1 中级（自然流畅）', desc: 'Use natural B1-level intermediate French with common idiomatic expressions.' },
-    { id: 'B2', label: 'B2 中高级（地道进阶）', desc: 'Use expressive, idiomatic B2-level French with natural nuance.' },
-    { id: 'C1', label: 'C1 高级（文学优雅）', desc: 'Use refined C1-level French with rich literary vocabulary and authentic turns of phrase.' },
-    { id: 'native', label: '母语级（不限难度）', desc: 'Use completely authentic, natural native-level French matching the character and atmosphere.' },
+    { id: 'A2', label: 'A2 初级', desc: 'Use clear A2-level French with simple sentences and everyday vocabulary.' },
+    { id: 'B1', label: 'B1 中级', desc: 'Use natural B1-level intermediate French with common idiomatic expressions.' },
+    { id: 'B2', label: 'B2 中高级', desc: 'Use expressive, idiomatic B2-level French with natural nuance.' },
+    { id: 'C1', label: 'C1 高级', desc: 'Use refined C1-level French with rich literary vocabulary and authentic turns of phrase.' },
+    { id: 'native', label: '母语级', desc: 'Use completely authentic, natural native-level French matching the character and atmosphere.' },
   ],
   tokenize(text) {
     const tokens = [];

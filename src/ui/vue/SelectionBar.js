@@ -145,21 +145,21 @@ export const SelectionBar = defineComponent({
   template: `
     <div v-if="sel.visible" class="tl-sel-bar tl-ignore" :style="sel.style" @click.stop>
       <div class="tl-sel-actions">
-        <button type="button" class="tl-icon-btn" @click="onTranslate">
-          <i class="fa-solid fa-language"></i><span>翻译选句</span>
+        <button type="button" class="tl-icon-btn" @click="onTranslate" title="翻译">
+          <i class="fa-solid fa-language"></i>
         </button>
-        <button type="button" class="tl-icon-btn" @click="onSpeak">
-          <i class="fa-solid fa-volume-high"></i><span>朗读</span>
+        <button type="button" class="tl-icon-btn" @click="onSpeak" title="朗读">
+          <i class="fa-solid fa-volume-high"></i>
         </button>
-        <button type="button" class="tl-icon-btn" @click="onCopy">
-          <i class="fa-regular fa-copy"></i><span>复制</span>
+        <button type="button" class="tl-icon-btn" @click="onCopy" title="复制">
+          <i class="fa-regular fa-copy"></i>
         </button>
         <button type="button" class="tl-icon-btn" @click="closeSelectionBar" title="关闭">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
       <div v-if="sel.loading || sel.translation" class="tl-sel-result">
-        <span v-if="sel.loading"><i class="fa-solid fa-spinner fa-spin"></i> 正在翻译选中内容...</span>
+        <span v-if="sel.loading"><i class="fa-solid fa-spinner fa-spin"></i></span>
         <span v-else>{{ sel.translation }}</span>
       </div>
     </div>

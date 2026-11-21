@@ -5,6 +5,7 @@ import { translateText } from '../translators/registry.js';
 const dictMap = new Map();
 const dictCache = new Map();
 const MAX_CACHE = 300;
+const DICT_TIMEOUT_MS = 4500;
 
 export const POS_CN_MAP = {
   noun: { abbr: 'n.', cn: '名词', tone: 'noun' },
@@ -49,10 +50,22 @@ function setCache(key, value) {
   dictCache.set(key, value);
 }
 
-/**
- * 注册可组装词典源
- * provider: { id, name, description, languages: ['en'] | ['*'], requiresConfig?: boolean, lookup(word, ctx) }
- */
+function withTimeout(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('词典请求超时')), ms);
+    promise.then(
+      (val) => {
+        clearTimeout(timer);
+        resolve(val);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 export function registerDictionary(provider) {
   if (!provider || !provider.id) {
     throw new Error('[TavernLanguage] registerDictionary 需要 id 字段');
@@ -79,20 +92,17 @@ export function getDictionaryChainForLang(langCode) {
   const cfg = getConfig();
   const lang = getLanguage(langCode);
   const configured = cfg.dictionaryChains?.[langCode];
-  const chain = Array.isArray(configured) && configured.length > 0
-    ? configured
-    : (lang?.defaultDictionaries || ['wiktionary', 'ai-context']);
+  const chain =
+    Array.isArray(configured) && configured.length > 0
+      ? configured
+      : lang?.defaultDictionaries || ['wiktionary', 'ai-context'];
   return chain.filter((id) => dictMap.has(id));
 }
 
-/**
- * 为外语词典释义补充简明中文（仅在缺少中文时触发，批量合并一次翻译请求）
- */
 async function enrichChineseMeanings(entry, langCode) {
   const cfg = getConfig();
   if (!cfg.autoTranslateDict || !entry || !Array.isArray(entry.meanings)) return entry;
 
-  // 收集需要翻译成中文的词条（最多前 5 条，保持极速响应）
   const targets = [];
   for (const m of entry.meanings) {
     for (const d of m.definitions || []) {
@@ -104,35 +114,29 @@ async function enrichChineseMeanings(entry, langCode) {
   if (targets.length === 0) return entry;
 
   try {
-    // 先把词本身也附带一个简明中文速译
-    const batchLines = [entry.word, ...targets.map((t) => t.text)];
-    const joined = batchLines.join('\n');
+    const joined = targets.map((t) => t.text).join('\n');
     const translated = await translateText(joined, {
-      from: 'en', // 词典释义通常为英文（FreeDict / Jotoba / En-Wiktionary）
+      from: 'en',
       to: 'zh-CN',
       providerId: cfg.translator === 'tavern-ai' ? 'google' : cfg.translator,
     });
     const lines = translated.split(/\r?\n/).map((s) => s.trim());
-    if (lines.length === batchLines.length) {
-      if (!entry.briefCn) entry.briefCn = lines[0];
+    if (lines.length === targets.length) {
       targets.forEach((t, idx) => {
-        t.cn = lines[idx + 1] || '';
-      });
-    } else if (!entry.briefCn) {
-      entry.briefCn = await translateText(entry.word, {
-        from: langCode,
-        to: 'zh-CN',
-        providerId: cfg.translator === 'tavern-ai' ? 'google' : cfg.translator,
+        t.cn = lines[idx] || '';
       });
     }
   } catch {
-    // 补全中文失败时不影响原词典展示
+    // ignore
   }
   return entry;
 }
 
 /**
- * 查词主入口：按组装的词典链依次尝试，或指定特定词典源
+ * 渐进式高速查词：
+ * 1. 命中缓存立即 0ms 返回；
+ * 2. 并行发起「极速中文速译」与「词典查询」，谁先返回先渲染，大幅降低等待感；
+ * 3. 词典返回后立即展示词性/音标/释义，中文逐条释义在后台补全并无感刷新。
  */
 export async function lookupWord(word, options = {}) {
   const rawWord = String(word || '').trim();
@@ -142,57 +146,111 @@ export async function lookupWord(word, options = {}) {
   const langCode = options.lang || cfg.targetLang || 'en';
   const langDef = getLanguage(langCode);
   const preferredSource = options.sourceId || null;
+  const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : null;
 
   const cacheKey = `${preferredSource || 'auto'}|${langCode}|${rawWord.toLowerCase()}`;
   if (!options.bypassCache && dictCache.has(cacheKey)) {
-    return dictCache.get(cacheKey);
+    const cached = dictCache.get(cacheKey);
+    if (onUpdate) onUpdate(cached, false);
+    return cached;
   }
 
-  const chain = preferredSource
-    ? [preferredSource]
-    : getDictionaryChainForLang(langCode);
+  const chain = preferredSource ? [preferredSource] : getDictionaryChainForLang(langCode);
+  let dictFinished = false;
+  let quickBrief = '';
+
+  // 并行启动极速单词中文速译（仅在非手动 AI 精讲时），通常 150~300ms 即可先亮出中文释义
+  const quickTranslatePromise =
+    preferredSource !== 'ai-context'
+      ? translateText(rawWord, {
+          from: langCode,
+          to: 'zh-CN',
+          providerId: cfg.translator === 'tavern-ai' ? 'google' : cfg.translator,
+        })
+          .then((cn) => {
+            quickBrief = cn;
+            if (!dictFinished && onUpdate && cn) {
+              onUpdate(
+                {
+                  word: rawWord,
+                  phonetic: '',
+                  reading: '',
+                  audioUrl: '',
+                  briefCn: cn,
+                  tags: [],
+                  sourceId: '',
+                  sourceName: '',
+                  meanings: [],
+                },
+                true
+              );
+            }
+            return cn;
+          })
+          .catch(() => '')
+      : Promise.resolve('');
+
+  let foundEntry = null;
 
   for (const id of chain) {
     const provider = dictMap.get(id);
     if (!provider) continue;
-    // 在自动查词链中，默认跳过需要手动点击的 ai-context（除非它是唯一源或用户主动点击）
     if (!preferredSource && id === 'ai-context' && chain.length > 1) {
       continue;
     }
     try {
-      const entry = await provider.lookup(rawWord, {
-        lang: langCode,
-        langDef,
-        context: options.context || '',
-        config: cfg,
-      });
+      const timeout = id === 'ai-context' ? 15000 : DICT_TIMEOUT_MS;
+      const entry = await withTimeout(
+        provider.lookup(rawWord, {
+          lang: langCode,
+          langDef,
+          context: options.context || '',
+          config: cfg,
+        }),
+        timeout
+      );
       if (entry && entry.meanings && entry.meanings.length > 0) {
         entry.sourceId = provider.id;
         entry.sourceName = provider.name;
-        await enrichChineseMeanings(entry, langCode);
-        setCache(cacheKey, entry);
-        return entry;
+        if (!entry.briefCn && quickBrief) entry.briefCn = quickBrief;
+        foundEntry = entry;
+        break;
       }
     } catch (err) {
       console.warn(`[TavernLanguage] 词典 ${id} 查词失败 (${rawWord}):`, err?.message || err);
     }
   }
 
-  // 所有词典均未命中（例如复杂动词变位/人名/短语）时，降级返回快捷翻译卡片
-  try {
-    const brief = await translateText(rawWord, {
-      from: langCode,
-      to: 'zh-CN',
-    });
+  dictFinished = true;
+
+  if (foundEntry) {
+    // 第一时间展示词典结果，无需等中文逐条翻译
+    if (onUpdate) onUpdate({ ...foundEntry }, false);
+
+    // 并行补全标题中文速译 & 逐条释义中文
+    const [brief] = await Promise.all([
+      foundEntry.briefCn ? Promise.resolve(foundEntry.briefCn) : quickTranslatePromise,
+      enrichChineseMeanings(foundEntry, langCode),
+    ]);
+    if (!foundEntry.briefCn && brief) foundEntry.briefCn = brief;
+
+    setCache(cacheKey, foundEntry);
+    if (onUpdate) onUpdate({ ...foundEntry }, false);
+    return foundEntry;
+  }
+
+  // 所有词典均未命中，使用已并行的速译结果兜底
+  const brief = quickBrief || (await quickTranslatePromise);
+  if (brief) {
     const fallbackEntry = {
       word: rawWord,
       phonetic: '',
       reading: '',
       audioUrl: '',
       briefCn: brief,
-      tags: ['快捷释义'],
+      tags: [],
       sourceId: 'fallback-translate',
-      sourceName: '翻译兜底',
+      sourceName: '直译',
       meanings: [
         {
           pos: 'translation',
@@ -202,8 +260,9 @@ export async function lookupWord(word, options = {}) {
       ],
     };
     setCache(cacheKey, fallbackEntry);
+    if (onUpdate) onUpdate(fallbackEntry, false);
     return fallbackEntry;
-  } catch {
-    return null;
   }
+
+  return null;
 }

@@ -5,6 +5,18 @@ import { getTavernHelper } from './host.js';
 const PROMPT_ID = 'tavern-language-immersive-prompt';
 let currentUninject = null;
 
+export function getDefaultPromptText(langCode, levelId) {
+  const langDef = getLanguage(langCode);
+  if (!langDef) return '';
+  return langDef.buildPrompt(levelId, '');
+}
+
+export function getEffectivePromptText(cfg = getConfig()) {
+  const custom = String(cfg.promptInjection?.promptText || '').trim();
+  if (custom) return custom;
+  return getDefaultPromptText(cfg.targetLang, cfg.promptInjection?.level);
+}
+
 export function clearInjectedPrompt() {
   if (typeof currentUninject === 'function') {
     try {
@@ -37,13 +49,8 @@ export function syncPromptInjection() {
     return false;
   }
 
-  const langDef = getLanguage(cfg.targetLang);
-  if (!langDef) return false;
-
-  const content = langDef.buildPrompt(
-    cfg.promptInjection.level,
-    cfg.promptInjection.customInstruction
-  );
+  const content = getEffectivePromptText(cfg);
+  if (!content) return false;
 
   try {
     const res = helper.injectPrompts([

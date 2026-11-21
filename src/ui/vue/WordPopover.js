@@ -130,15 +130,24 @@ export async function openWordPopoverForElement(wordEl, sourceId = null) {
     lang,
     context: contextSentence,
     sourceId,
+    onUpdate(partial, stillLoading) {
+      if (seq !== lookupSeq || !appState.popover.visible) return;
+      pop.entry = partial;
+      pop.loading = stillLoading;
+      if (partial?.sourceId) {
+        pop.activeSourceId = sourceId || partial.sourceId;
+      }
+      if (!sourceId && getConfig().autoSpeakWord && partial?.audioUrl) {
+        speakWord(word, { lang, audioUrl: partial.audioUrl }).catch(() => {});
+      }
+    },
   });
 
   if (seq !== lookupSeq || !appState.popover.visible) return;
   pop.loading = false;
-  pop.entry = entry;
-  pop.activeSourceId = sourceId || entry?.sourceId || '';
-
-  if (!sourceId && getConfig().autoSpeakWord && entry?.audioUrl) {
-    speakWord(word, { lang, audioUrl: entry.audioUrl }).catch(() => {});
+  if (entry) {
+    pop.entry = entry;
+    pop.activeSourceId = sourceId || entry.sourceId || '';
   }
 }
 
@@ -377,11 +386,7 @@ export const WordPopover = defineComponent({
       </div>
 
       <div class="tl-pop-body">
-        <div v-if="pop.loading" class="tl-def-orig">
-          <i class="fa-solid fa-spinner fa-spin"></i> 正在查询词典...
-        </div>
-
-        <template v-else-if="pop.entry">
+        <div v-if="pop.entry && pop.entry.meanings && pop.entry.meanings.length">
           <div v-for="(m, mi) in pop.entry.meanings" :key="mi" class="tl-meaning-block">
             <div class="tl-pos-badge" :class="'tl-pos-' + (m.posInfo?.tone || 'other')">
               {{ [m.posInfo?.abbr, m.posInfo?.cn].filter(Boolean).join(' ') || m.pos || '词义' }}
@@ -393,35 +398,43 @@ export const WordPopover = defineComponent({
                 v-if="d.example"
                 class="tl-def-example"
                 @click="onSpeakExample(d.example)"
-                title="点击朗读例句"
+                title="朗读例句"
               >
                 <i class="fa-solid fa-volume-high"></i>
                 <span>{{ d.example }}</span>
               </div>
             </div>
           </div>
-        </template>
+        </div>
 
-        <div v-else class="tl-def-orig">
-          未找到该词条，可点击上方「AI 语境精讲」或下方「翻译所在句」。
+        <div v-if="pop.loading" class="tl-def-orig tl-loading-row">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          <span>{{ pop.entry?.briefCn ? '加载详细词典...' : '查询中...' }}</span>
+        </div>
+
+        <div v-else-if="!pop.entry" class="tl-def-orig">
+          未找到词条，可切换「AI 精讲」或翻译整句
         </div>
 
         <div v-if="pop.sentenceLoading || pop.sentenceTranslation" class="tl-sentence-box">
           <div class="tl-sentence-orig">{{ pop.contextSentence }}</div>
           <div v-if="pop.sentenceLoading" class="tl-def-orig">
-            <i class="fa-solid fa-spinner fa-spin"></i> 正在翻译所在句...
+            <i class="fa-solid fa-spinner fa-spin"></i>
           </div>
           <div v-else class="tl-sentence-cn">{{ pop.sentenceTranslation }}</div>
         </div>
       </div>
 
       <div class="tl-pop-footer">
-        <button type="button" class="tl-icon-btn" @click="onSpeakSentence">
-          <i class="fa-solid fa-volume-high"></i><span>朗读所在句</span>
-        </button>
-        <button type="button" class="tl-icon-btn" @click="onTranslateSentence">
-          <i class="fa-solid fa-language"></i><span>翻译所在句</span>
-        </button>
+        <span class="tl-pop-footer-label">整句</span>
+        <div class="tl-pop-footer-actions">
+          <button type="button" class="tl-icon-btn" @click="onSpeakSentence" title="朗读整句">
+            <i class="fa-solid fa-volume-high"></i>
+          </button>
+          <button type="button" class="tl-icon-btn" @click="onTranslateSentence" title="翻译整句">
+            <i class="fa-solid fa-language"></i>
+          </button>
+        </div>
       </div>
     </div>
   `,

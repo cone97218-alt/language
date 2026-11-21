@@ -12,11 +12,11 @@ export const enLanguage = registerLanguage({
   youdaoLang: 'en',
   defaultDictionaries: ['free-dict', 'wiktionary', 'ai-context'],
   levels: [
-    { id: 'A2', label: 'A2 初级（日常高频词）', desc: 'Use simple A2-level English with short, clear sentences and high-frequency daily vocabulary.' },
-    { id: 'B1', label: 'B1 中级（自然流畅）', desc: 'Use natural B1-level intermediate English with everyday expressions and moderate sentence complexity.' },
-    { id: 'B2', label: 'B2 中高级（地道进阶）', desc: 'Use rich, idiomatic B2-level upper-intermediate English with nuanced phrasing.' },
-    { id: 'C1', label: 'C1 高级（文学/深度）', desc: 'Use sophisticated C1-level advanced English with vivid literary vocabulary and natural idioms.' },
-    { id: 'native', label: '母语级（不限难度）', desc: 'Use completely natural, authentic native-level English matching the character and setting.' },
+    { id: 'A2', label: 'A2 初级', desc: 'Use simple A2-level English with short, clear sentences and high-frequency daily vocabulary.' },
+    { id: 'B1', label: 'B1 中级', desc: 'Use natural B1-level intermediate English with everyday expressions and moderate sentence complexity.' },
+    { id: 'B2', label: 'B2 中高级', desc: 'Use rich, idiomatic B2-level upper-intermediate English with nuanced phrasing.' },
+    { id: 'C1', label: 'C1 高级', desc: 'Use sophisticated C1-level advanced English with vivid literary vocabulary and natural idioms.' },
+    { id: 'native', label: '母语级', desc: 'Use completely natural, authentic native-level English matching the character and setting.' },
   ],
   tokenize(text) {
     const tokens = [];

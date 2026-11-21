@@ -166,38 +166,38 @@ export const VocabBookView = defineComponent({
         </button>
       </div>
 
-      <!-- 新建单词本输入框 -->
       <div v-if="showCreateBook" class="tl-inline-form">
         <input
           v-model="newBookName"
           type="text"
           class="tl-input"
-          placeholder="输入新单词本名称（如：日语高频 / 剧情好词）"
+          placeholder="输入单词本名称"
           @keyup.enter="onCreateBook"
         />
         <button type="button" class="tl-btn tl-btn-primary" @click="onCreateBook">创建</button>
       </div>
 
-      <!-- 当前选中单词本的管理快捷操作 -->
       <div v-if="selectedBookId !== 'all'" class="tl-book-manage-row">
         <button
           v-if="selectedBookId !== activeBookId"
           type="button"
           class="tl-icon-btn"
           @click="onSetDefaultBook(selectedBookId)"
+          title="设为默认收藏本"
         >
-          <i class="fa-regular fa-star"></i><span>设为默认收藏本</span>
+          <i class="fa-regular fa-star"></i><span>设为默认</span>
         </button>
         <span v-else class="tl-hint" style="margin:0;">
-          <i class="fa-solid fa-star"></i> 当前为默认收藏本
+          <i class="fa-solid fa-star"></i> 默认本
         </span>
         <button
           v-if="books.length > 1"
           type="button"
           class="tl-icon-btn"
           @click="onDeleteBook(books.find(b => b.id === selectedBookId))"
+          title="删除当前单词本"
         >
-          <i class="fa-regular fa-trash-can"></i><span>删除此本</span>
+          <i class="fa-regular fa-trash-can"></i>
         </button>
       </div>
 
@@ -259,11 +259,11 @@ export const VocabBookView = defineComponent({
       </div>
 
       <div class="tl-vocab-io">
-        <button type="button" class="tl-icon-btn" @click="onExport">
-          <i class="fa-solid fa-file-export"></i><span>导出 JSON</span>
+        <button type="button" class="tl-icon-btn" @click="onExport" title="导出 JSON">
+          <i class="fa-solid fa-file-export"></i>
         </button>
-        <button type="button" class="tl-icon-btn" @click="onImport">
-          <i class="fa-solid fa-file-import"></i><span>导入 JSON</span>
+        <button type="button" class="tl-icon-btn" @click="onImport" title="导入 JSON">
+          <i class="fa-solid fa-file-import"></i>
         </button>
       </div>
     </div>

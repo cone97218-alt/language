@@ -15,8 +15,8 @@ function stripHtml(html) {
 
 export const wiktionaryDictionary = registerDictionary({
   id: 'wiktionary',
-  name: 'Wiktionary 多语种词典',
-  description: '维基词典官方接口，原生支持英/日/法及几乎所有小语种',
+  name: 'Wiktionary',
+  description: '多语种开源词典，覆盖英/日/法及小语种',
   languages: ['*'],
   async lookup(word, { lang, langDef }) {
     const candidates = [word];

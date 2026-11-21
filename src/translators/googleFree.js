@@ -2,8 +2,8 @@ import { registerTranslator } from './registry.js';
 
 export const googleFreeTranslator = registerTranslator({
   id: 'google',
-  name: 'Google 免费翻译',
-  description: '免 Key、速度快、支持多语种（默认推荐）',
+  name: 'Google 翻译',
+  description: '免 Key、速度快',
   async translate(text, { from = 'auto', to = 'zh-CN' }) {
     const sl = from === 'auto' ? 'auto' : from;
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sl)}&tl=${encodeURIComponent(to)}&dt=t&q=${encodeURIComponent(text)}`;

@@ -1,6 +1,6 @@
 import { getHostWindow } from './core/host.js';
 
-export const VERSION = '2.0.0';
+export const VERSION = '2.1.0';
 export const STORAGE_KEY = 'tavern_language_config_v1';
 
 // 系统级始终跳过的非正文标签（防止破坏脚本、样式与插件自身节点）
@@ -30,8 +30,8 @@ export const DEFAULT_CONFIG = {
   // 沉浸式外语提示词注入（让 API 直接输出目标外语）
   promptInjection: {
     enabled: true,
-    level: 'B1', // 对应各语种难度等级，如 A2/B1/B2/native 或 N5-N1/native
-    customInstruction: '',
+    level: 'B1',
+    promptText: '',
     depth: 0,
   },
   // 界面主题：'tavern'（跟随酒馆美化变量）| 'light'（日间）| 'dark'（夜间）
