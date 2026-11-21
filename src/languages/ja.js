@@ -20,7 +20,7 @@ export const jaLanguage = registerLanguage({
   googleCode: 'ja',
   wiktionaryLang: 'Japanese',
   youdaoLang: 'ja',
-  defaultDictionaries: ['jotoba', 'wiktionary', 'ai-context'],
+  defaultDictionaries: ['google-dict', 'jotoba', 'wiktionary', 'ai-context'],
   levels: [
     { id: 'N5', label: 'JLPT N5', desc: 'Use beginner JLPT N5-level Japanese with simple grammar and basic everyday words.' },
     { id: 'N4', label: 'JLPT N4', desc: 'Use JLPT N4-level Japanese with clear conversational expressions.' },

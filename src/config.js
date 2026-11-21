@@ -1,6 +1,6 @@
 import { getHostWindow } from './core/host.js';
 
-export const VERSION = '2.1.1';
+export const VERSION = '2.2.0';
 export const STORAGE_KEY = 'tavern_language_config_v1';
 
 // 系统级始终跳过的非正文标签（防止破坏脚本、样式与插件自身节点）
@@ -50,9 +50,9 @@ export const DEFAULT_CONFIG = {
   ],
   // 每个语种启用的词典链（按优先级组装，可调整顺序与开关）
   dictionaryChains: {
-    en: ['free-dict', 'wiktionary', 'ai-context'],
-    ja: ['jotoba', 'wiktionary', 'ai-context'],
-    fr: ['wiktionary', 'ai-context'],
+    en: ['google-dict', 'free-dict', 'wiktionary', 'ai-context'],
+    ja: ['google-dict', 'jotoba', 'wiktionary', 'ai-context'],
+    fr: ['google-dict', 'wiktionary', 'ai-context'],
   },
   // 点词时是否自动附带中文释义补全
   autoTranslateDict: true,
@@ -102,8 +102,24 @@ export function loadConfig() {
     if (raw) {
       const parsed = JSON.parse(raw);
       currentConfig = deepMerge(DEFAULT_CONFIG, parsed);
+      // 平滑升级：为旧版配置自动将「极速词典」置顶，立刻提速
+      if (!parsed._migratedGoogleDict) {
+        for (const code of ['en', 'ja', 'fr']) {
+          const chain = currentConfig.dictionaryChains?.[code];
+          if (Array.isArray(chain) && !chain.includes('google-dict')) {
+            currentConfig.dictionaryChains[code] = ['google-dict', ...chain];
+          }
+        }
+        currentConfig._migratedGoogleDict = true;
+        try {
+          getHostWindow().localStorage.setItem(STORAGE_KEY, JSON.stringify(currentConfig));
+        } catch {
+          // ignore
+        }
+      }
     } else {
       currentConfig = deepMerge(DEFAULT_CONFIG, {});
+      currentConfig._migratedGoogleDict = true;
     }
   } catch (err) {
     console.warn('[TavernLanguage] 读取配置失败，使用默认配置:', err);

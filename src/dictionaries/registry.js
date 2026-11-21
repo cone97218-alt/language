@@ -1,11 +1,17 @@
 import { getConfig } from '../config.js';
 import { getLanguage } from '../languages/registry.js';
 import { translateText } from '../translators/registry.js';
+import { getHostWindow } from '../core/host.js';
 
 const dictMap = new Map();
 const dictCache = new Map();
-const MAX_CACHE = 300;
-const DICT_TIMEOUT_MS = 4500;
+const inFlightMap = new Map();
+const DICT_CACHE_STORAGE_KEY = 'tavern_language_dict_cache_v1';
+const MAX_CACHE = 400;
+const DICT_TIMEOUT_MS = 4000;
+
+let cacheLoaded = false;
+let persistTimer = null;
 
 export const POS_CN_MAP = {
   noun: { abbr: 'n.', cn: '名词', tone: 'noun' },
@@ -42,12 +48,45 @@ export function normalizePos(rawPos) {
   return { abbr: rawPos || '词项', cn: '', tone: 'other' };
 }
 
+function ensureCacheLoaded() {
+  if (cacheLoaded) return;
+  cacheLoaded = true;
+  try {
+    const raw = getHostWindow().localStorage.getItem(DICT_CACHE_STORAGE_KEY);
+    if (!raw) return;
+    const entries = JSON.parse(raw);
+    if (Array.isArray(entries)) {
+      for (const [k, v] of entries) {
+        if (k && v) dictCache.set(k, v);
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function schedulePersistCache() {
+  if (persistTimer) return;
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    try {
+      const arr = [...dictCache.entries()].slice(-MAX_CACHE);
+      getHostWindow().localStorage.setItem(DICT_CACHE_STORAGE_KEY, JSON.stringify(arr));
+    } catch {
+      // ignore quota error
+    }
+  }, 600);
+}
+
 function setCache(key, value) {
+  ensureCacheLoaded();
+  if (dictCache.has(key)) dictCache.delete(key);
   if (dictCache.size >= MAX_CACHE) {
     const first = dictCache.keys().next().value;
     dictCache.delete(first);
   }
   dictCache.set(key, value);
+  schedulePersistCache();
 }
 
 function withTimeout(promise, ms) {
@@ -86,6 +125,12 @@ export function getDictionary(id) {
 
 export function clearDictionaryCache() {
   dictCache.clear();
+  inFlightMap.clear();
+  try {
+    getHostWindow().localStorage.removeItem(DICT_CACHE_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 export function getDictionaryChainForLang(langCode) {
@@ -95,11 +140,11 @@ export function getDictionaryChainForLang(langCode) {
   const chain =
     Array.isArray(configured) && configured.length > 0
       ? configured
-      : lang?.defaultDictionaries || ['wiktionary', 'ai-context'];
+      : lang?.defaultDictionaries || ['google-dict', 'wiktionary', 'ai-context'];
   return chain.filter((id) => dictMap.has(id));
 }
 
-async function enrichChineseMeanings(entry, langCode) {
+async function enrichChineseMeanings(entry) {
   const cfg = getConfig();
   if (!cfg.autoTranslateDict || !entry || !Array.isArray(entry.meanings)) return entry;
 
@@ -132,16 +177,43 @@ async function enrichChineseMeanings(entry, langCode) {
   return entry;
 }
 
+async function queryProvider(provider, rawWord, ctx) {
+  const timeout = provider.id === 'ai-context' ? 15000 : DICT_TIMEOUT_MS;
+  const entry = await withTimeout(provider.lookup(rawWord, ctx), timeout);
+  if (entry && entry.meanings && entry.meanings.length > 0) {
+    entry.sourceId = provider.id;
+    entry.sourceName = provider.name;
+    return entry;
+  }
+  return null;
+}
+
 /**
- * 渐进式高速查词：
- * 1. 命中缓存立即 0ms 返回；
- * 2. 并行发起「极速中文速译」与「词典查询」，谁先返回先渲染，大幅降低等待感；
- * 3. 词典返回后立即展示词性/音标/释义，中文逐条释义在后台补全并无感刷新。
+ * 手指按下时提前预取（与随后的 click 共享同一个 inFlight Promise，绝不重复发请求）
+ */
+export function prefetchWord(word, langCode = null) {
+  const rawWord = String(word || '').trim();
+  if (!rawWord) return;
+  const lang = langCode || getConfig().targetLang || 'en';
+  const cacheKey = `auto|${lang}|${rawWord.toLowerCase()}`;
+  ensureCacheLoaded();
+  if (dictCache.has(cacheKey) || inFlightMap.has(cacheKey)) return;
+
+  lookupWord(rawWord, { lang }).catch(() => {});
+}
+
+/**
+ * 极速查词主入口：
+ * 1. 持久化本地缓存命中：0ms 瞬开（刷新页面仍保留）；
+ * 2. 复用 pointerdown 预取中的请求（inFlightMap 去重）；
+ * 3. 多源并行竞速（前两个词典同时请求，谁先回谁先渲染），大幅消除串行超时等待；
+ * 4. 默认首选「极速词典」，单次请求直出词性 + 中文释义，零二次翻译延迟。
  */
 export async function lookupWord(word, options = {}) {
   const rawWord = String(word || '').trim();
   if (!rawWord) return null;
 
+  ensureCacheLoaded();
   const cfg = getConfig();
   const langCode = options.lang || cfg.targetLang || 'en';
   const langDef = getLanguage(langCode);
@@ -149,120 +221,132 @@ export async function lookupWord(word, options = {}) {
   const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : null;
 
   const cacheKey = `${preferredSource || 'auto'}|${langCode}|${rawWord.toLowerCase()}`;
+
+  // 1. 本地持久化缓存命中：立即瞬开
   if (!options.bypassCache && dictCache.has(cacheKey)) {
     const cached = dictCache.get(cacheKey);
     if (onUpdate) onUpdate(cached, false);
     return cached;
   }
 
-  const chain = preferredSource ? [preferredSource] : getDictionaryChainForLang(langCode);
-  let dictFinished = false;
-  let quickBrief = '';
-
-  // 并行启动极速单词中文速译（仅在非手动 AI 精讲时），通常 150~300ms 即可先亮出中文释义
-  const quickTranslatePromise =
-    preferredSource !== 'ai-context'
-      ? translateText(rawWord, {
-          from: langCode,
-          to: 'zh-CN',
-          providerId: cfg.translator === 'tavern-ai' ? 'google' : cfg.translator,
-        })
-          .then((cn) => {
-            quickBrief = cn;
-            if (!dictFinished && onUpdate && cn) {
-              onUpdate(
-                {
-                  word: rawWord,
-                  phonetic: '',
-                  reading: '',
-                  audioUrl: '',
-                  briefCn: cn,
-                  tags: [],
-                  sourceId: '',
-                  sourceName: '',
-                  meanings: [],
-                },
-                true
-              );
-            }
-            return cn;
-          })
-          .catch(() => '')
-      : Promise.resolve('');
-
-  let foundEntry = null;
-
-  for (const id of chain) {
-    const provider = dictMap.get(id);
-    if (!provider) continue;
-    if (!preferredSource && id === 'ai-context' && chain.length > 1) {
-      continue;
-    }
-    try {
-      const timeout = id === 'ai-context' ? 15000 : DICT_TIMEOUT_MS;
-      const entry = await withTimeout(
-        provider.lookup(rawWord, {
-          lang: langCode,
-          langDef,
-          context: options.context || '',
-          config: cfg,
-        }),
-        timeout
-      );
-      if (entry && entry.meanings && entry.meanings.length > 0) {
-        entry.sourceId = provider.id;
-        entry.sourceName = provider.name;
-        if (!entry.briefCn && quickBrief) entry.briefCn = quickBrief;
-        foundEntry = entry;
-        break;
-      }
-    } catch (err) {
-      console.warn(`[TavernLanguage] 词典 ${id} 查词失败 (${rawWord}):`, err?.message || err);
-    }
+  // 2. 复用正在进行中的预取请求（例如 pointerdown 刚刚触发的）
+  if (!options.bypassCache && inFlightMap.has(cacheKey)) {
+    const entry = await inFlightMap.get(cacheKey);
+    if (entry && onUpdate) onUpdate(entry, false);
+    return entry;
   }
 
-  dictFinished = true;
-
-  if (foundEntry) {
-    // 第一时间展示词典结果，无需等中文逐条翻译
-    if (onUpdate) onUpdate({ ...foundEntry }, false);
-
-    // 并行补全标题中文速译 & 逐条释义中文
-    const [brief] = await Promise.all([
-      foundEntry.briefCn ? Promise.resolve(foundEntry.briefCn) : quickTranslatePromise,
-      enrichChineseMeanings(foundEntry, langCode),
-    ]);
-    if (!foundEntry.briefCn && brief) foundEntry.briefCn = brief;
-
-    setCache(cacheKey, foundEntry);
-    if (onUpdate) onUpdate({ ...foundEntry }, false);
-    return foundEntry;
-  }
-
-  // 所有词典均未命中，使用已并行的速译结果兜底
-  const brief = quickBrief || (await quickTranslatePromise);
-  if (brief) {
-    const fallbackEntry = {
-      word: rawWord,
-      phonetic: '',
-      reading: '',
-      audioUrl: '',
-      briefCn: brief,
-      tags: [],
-      sourceId: 'fallback-translate',
-      sourceName: '直译',
-      meanings: [
-        {
-          pos: 'translation',
-          posInfo: { abbr: '译', cn: '直译', tone: 'other' },
-          definitions: [{ text: '', cn: brief, example: '' }],
-        },
-      ],
+  const task = (async () => {
+    const chain = preferredSource ? [preferredSource] : getDictionaryChainForLang(langCode);
+    const ctx = {
+      lang: langCode,
+      langDef,
+      context: options.context || '',
+      config: cfg,
     };
-    setCache(cacheKey, fallbackEntry);
-    if (onUpdate) onUpdate(fallbackEntry, false);
-    return fallbackEntry;
-  }
 
-  return null;
+    const autoChain = preferredSource
+      ? chain
+      : chain.filter((id) => id !== 'ai-context' || chain.length === 1);
+
+    let foundEntry = null;
+
+    if (autoChain.length >= 2 && !preferredSource) {
+      // 并行竞速前 2 个词典源，谁先返回有效词条立刻使用
+      const racers = autoChain.slice(0, 2).map((id) => {
+        const provider = dictMap.get(id);
+        if (!provider) return Promise.reject(new Error('missing'));
+        return queryProvider(provider, rawWord, ctx).then((res) => {
+          if (!res) throw new Error('empty');
+          return res;
+        });
+      });
+
+      try {
+        foundEntry = await Promise.any(racers);
+      } catch {
+        foundEntry = null;
+      }
+
+      // 若前 2 个都未命中，顺序尝试剩余词典
+      if (!foundEntry && autoChain.length > 2) {
+        for (const id of autoChain.slice(2)) {
+          const provider = dictMap.get(id);
+          if (!provider) continue;
+          try {
+            foundEntry = await queryProvider(provider, rawWord, ctx);
+            if (foundEntry) break;
+          } catch {
+            // continue
+          }
+        }
+      }
+    } else {
+      for (const id of autoChain) {
+        const provider = dictMap.get(id);
+        if (!provider) continue;
+        try {
+          foundEntry = await queryProvider(provider, rawWord, ctx);
+          if (foundEntry) break;
+        } catch (err) {
+          console.warn(`[TavernLanguage] 词典 ${id} 查词失败 (${rawWord}):`, err?.message || err);
+        }
+      }
+    }
+
+    if (foundEntry) {
+      // 第一时间回调渲染（极速词典此时已含全部中文释义，直接一步到位）
+      if (onUpdate) onUpdate({ ...foundEntry }, false);
+
+      // 若词典本身是纯英文释义（如 FreeDict / Wiktionary / Jotoba），后台补全中文
+      const needsCn = foundEntry.meanings.some((m) =>
+        (m.definitions || []).some((d) => !d.cn && d.text)
+      );
+      if (needsCn && cfg.autoTranslateDict) {
+        await enrichChineseMeanings(foundEntry);
+        if (onUpdate) onUpdate({ ...foundEntry }, false);
+      }
+
+      setCache(cacheKey, foundEntry);
+      return foundEntry;
+    }
+
+    // 最终兜底：调用极速翻译
+    try {
+      const brief = await translateText(rawWord, { from: langCode, to: 'zh-CN' });
+      if (brief) {
+        const fallbackEntry = {
+          word: rawWord,
+          phonetic: '',
+          reading: '',
+          audioUrl: '',
+          briefCn: brief,
+          tags: [],
+          sourceId: 'fallback-translate',
+          sourceName: '直译',
+          meanings: [
+            {
+              pos: 'translation',
+              posInfo: { abbr: '译', cn: '直译', tone: 'other' },
+              definitions: [{ text: '', cn: brief, example: '' }],
+            },
+          ],
+        };
+        setCache(cacheKey, fallbackEntry);
+        if (onUpdate) onUpdate(fallbackEntry, false);
+        return fallbackEntry;
+      }
+    } catch {
+      // ignore
+    }
+
+    return null;
+  })();
+
+  inFlightMap.set(cacheKey, task);
+  try {
+    return await task;
+  } finally {
+    inFlightMap.delete(cacheKey);
+  }
 }

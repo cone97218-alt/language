@@ -10,7 +10,7 @@ export const enLanguage = registerLanguage({
   googleCode: 'en',
   wiktionaryLang: 'English',
   youdaoLang: 'en',
-  defaultDictionaries: ['free-dict', 'wiktionary', 'ai-context'],
+  defaultDictionaries: ['google-dict', 'free-dict', 'wiktionary', 'ai-context'],
   levels: [
     { id: 'A2', label: 'A2 初级', desc: 'Use simple A2-level English with short, clear sentences and high-frequency daily vocabulary.' },
     { id: 'B1', label: 'B1 中级', desc: 'Use natural B1-level intermediate English with everyday expressions and moderate sentence complexity.' },

@@ -1,5 +1,5 @@
 // 酒馆助手沉浸式外语学习插件主入口 (Vue 3 架构)
-import { getHostWindow, notify } from './core/host.js';
+import { getHostWindow, getHostDocument, notify } from './core/host.js';
 import { onConfigChange, getConfig, updateConfig, VERSION } from './config.js';
 import { syncPromptInjection, clearInjectedPrompt } from './core/promptInjector.js';
 import { startObserving, stopObserving, processAllMessages, clearAllProcessedMessages } from './core/observer.js';
@@ -20,6 +20,7 @@ import './languages/fr.js';
 
 // 注册内置可组装词典源
 import { registerDictionary, listDictionaries, lookupWord } from './dictionaries/registry.js';
+import './dictionaries/googleDict.js';
 import './dictionaries/freeDictionary.js';
 import './dictionaries/jotoba.js';
 import './dictionaries/wiktionary.js';
@@ -56,6 +57,26 @@ export function destroy() {
   }
 }
 
+function injectPreconnectHints() {
+  const doc = getHostDocument();
+  const origins = [
+    'https://translate.googleapis.com',
+    'https://api.dictionaryapi.dev',
+    'https://en.wiktionary.org',
+    'https://jotoba.de',
+  ];
+  for (const href of origins) {
+    const id = `tl-preconnect-${href.replace(/[^a-z0-9]/gi, '')}`;
+    if (doc.getElementById(id)) continue;
+    const link = doc.createElement('link');
+    link.id = id;
+    link.rel = 'preconnect';
+    link.href = href;
+    link.crossOrigin = 'anonymous';
+    doc.head.appendChild(link);
+  }
+}
+
 export function init(options = {}) {
   const host = getHostWindow();
   // 热更新保护：若存在旧版本实例，先完整卸载再启动新版
@@ -67,6 +88,7 @@ export function init(options = {}) {
     }
   }
 
+  injectPreconnectHints();
   initAppState();
   injectStyles();
   mountVueUi();

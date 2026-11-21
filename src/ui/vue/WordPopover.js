@@ -2,7 +2,7 @@ import { defineComponent, computed } from 'vue';
 import { appState, syncVocabToState } from './appState.js';
 import { getHostDocument, getHostWindow, notify } from '../../core/host.js';
 import { getConfig } from '../../config.js';
-import { lookupWord, getDictionaryChainForLang, getDictionary } from '../../dictionaries/registry.js';
+import { lookupWord, prefetchWord, getDictionaryChainForLang, getDictionary } from '../../dictionaries/registry.js';
 import { translateText } from '../../translators/registry.js';
 import { speakWord, speakSentence } from '../../core/tts.js';
 import { extractSentenceAroundWord } from '../../core/tokenizer.js';
@@ -16,6 +16,7 @@ import {
 
 let activeWordEl = null;
 let clickHandler = null;
+let pointerDownPrefetchHandler = null;
 let keydownHandler = null;
 let lookupSeq = 0;
 
@@ -172,12 +173,22 @@ export function initPopoverListeners() {
     }
   };
 
+  pointerDownPrefetchHandler = (e) => {
+    if (!getConfig().enabled) return;
+    const wordEl = e.target?.closest?.('span.tl-word');
+    if (!wordEl) return;
+    const w = wordEl.dataset.tlWord || wordEl.textContent || '';
+    const lang = wordEl.dataset.tlLang || getConfig().targetLang || 'en';
+    if (w.trim()) prefetchWord(w, lang);
+  };
+
   keydownHandler = (e) => {
     if (e.key === 'Escape' && appState.popover.visible) {
       closeWordPopover();
     }
   };
 
+  doc.addEventListener('pointerdown', pointerDownPrefetchHandler, { passive: true });
   doc.addEventListener('click', clickHandler, false);
   doc.addEventListener('keydown', keydownHandler, false);
 }
@@ -185,6 +196,10 @@ export function initPopoverListeners() {
 export function destroyPopoverListeners() {
   closeWordPopover();
   const doc = getHostDocument();
+  if (pointerDownPrefetchHandler) {
+    doc.removeEventListener('pointerdown', pointerDownPrefetchHandler);
+    pointerDownPrefetchHandler = null;
+  }
   if (clickHandler) {
     doc.removeEventListener('click', clickHandler, false);
     clickHandler = null;

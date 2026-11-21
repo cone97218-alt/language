@@ -12,7 +12,7 @@ export const frLanguage = registerLanguage({
   googleCode: 'fr',
   wiktionaryLang: 'French',
   youdaoLang: 'fr',
-  defaultDictionaries: ['wiktionary', 'ai-context'],
+  defaultDictionaries: ['google-dict', 'wiktionary', 'ai-context'],
   levels: [
     { id: 'A2', label: 'A2 初级', desc: 'Use clear A2-level French with simple sentences and everyday vocabulary.' },
     { id: 'B1', label: 'B1 中级', desc: 'Use natural B1-level intermediate French with common idiomatic expressions.' },
