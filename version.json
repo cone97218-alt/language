@@ -1,6 +1,6 @@
 {
   "name": "tavern-language",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "entry": "dist/tavern-language.js",
   "updatedAt": "2026-11-21"
 }

@@ -1,19 +1,33 @@
 /**
- * 酒馆沉浸式外语学习插件 — 远程热更新引导器
+ * 酒馆沉浸式外语学习插件 — 实时无缓存远程热更新引导器
  * 使用方法：完整复制本段代码到「酒馆助手 (JS-Slash-Runner) -> 全局脚本」并启用即可。
- * 每次打开或刷新酒馆时，会自动从 GitHub 拉取最新版本热更新，无需再次复制代码。
+ * 原理：先获取 main 分支最新 commit SHA，再用不可变 SHA 走 jsDelivr 极速拉取，彻底绕开 CDN 分支缓存！
  */
 (async () => {
   const REPO = 'cone97218-alt/language';
   const BRANCH = 'main';
   const ENTRY = 'dist/tavern-language.js';
-  const ts = Date.now();
 
-  // 优先走 jsDelivr CDN（国内速度更快），失败自动回退 GitHub Raw
+  // 1. 实时获取 main 最新 commit SHA（绕过 jsDelivr @main 长达 12 小时的边缘缓存）
+  let ref = BRANCH;
+  try {
+    const metaRes = await fetch(`https://api.github.com/repos/${REPO}/commits/${BRANCH}`, {
+      headers: { Accept: 'application/vnd.github+json' },
+      cache: 'no-store',
+    });
+    if (metaRes.ok) {
+      const meta = await metaRes.json();
+      if (meta && meta.sha) ref = meta.sha;
+    }
+  } catch {
+    // 若 GitHub API 限流或不可达，继续走备用源
+  }
+
+  const ts = Date.now();
   const SOURCES = [
-    `https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}/${ENTRY}?t=${ts}`,
-    `https://fastly.jsdelivr.net/gh/${REPO}@${BRANCH}/${ENTRY}?t=${ts}`,
-    `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${ENTRY}?t=${ts}`,
+    `https://cdn.jsdelivr.net/gh/${REPO}@${ref}/${ENTRY}`,
+    `https://fastly.jsdelivr.net/gh/${REPO}@${ref}/${ENTRY}`,
+    `https://raw.githubusercontent.com/${REPO}/${ref}/${ENTRY}?t=${ts}`,
   ];
 
   for (const url of SOURCES) {

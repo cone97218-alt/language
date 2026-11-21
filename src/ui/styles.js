@@ -126,28 +126,213 @@ const CSS_TEXT = `
   display: none;
 }
 
-/* ========== 原生消息栏 Font Awesome 微按钮 ========== */
-.tl-mes-btn {
+/* ========== 消息正文底部柔和胶囊微栏（替代突兀的顶部编辑栏按钮） ========== */
+.tl-mes-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 4px;
+  opacity: 0.48;
+  transition: opacity 0.16s ease;
+  user-select: none;
+}
+
+.mes:hover .tl-mes-footer,
+.tl-mes-footer:hover,
+.tl-mes-footer:has(.tl-active) {
+  opacity: 1;
+}
+
+.tl-footer-pill {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  border-radius: 999px;
+  border: 1px solid var(--tl-border);
+  background: var(--tl-surface-soft);
+  color: var(--tl-text-muted);
   cursor: pointer;
-  opacity: 0.72;
-  width: 24px;
-  height: 24px;
-  font-size: 13px;
-  border-radius: var(--tl-radius-sm);
-  color: var(--SmartThemeBodyColor, inherit);
-  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
-  user-select: none;
+  transition: all 0.14s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-.tl-mes-btn:hover,
-.tl-mes-btn.tl-active {
-  opacity: 1;
+.tl-footer-pill:hover,
+.tl-footer-pill.tl-active {
   color: var(--tl-accent);
-  background-color: var(--tl-accent-soft);
+  border-color: var(--tl-accent);
+  background: var(--tl-accent-soft);
+}
+
+/* ========== 星标收藏与生词本组件样式 ========== */
+.tl-star-active {
+  color: #f59e0b !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  background: rgba(245, 158, 11, 0.14) !important;
+}
+
+.tl-book-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--tl-border);
+  background: var(--tl-surface);
+}
+
+.tl-book-picker-label {
+  font-size: 11.5px;
+  color: var(--tl-text-muted);
+}
+
+.tl-vocab-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tl-book-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tl-inline-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tl-book-manage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tl-vocab-filters {
+  display: flex;
+  gap: 8px;
+}
+
+.tl-lang-filter {
+  width: 112px;
+  flex-shrink: 0;
+}
+
+.tl-empty-state {
+  text-align: center;
+  padding: 28px 12px;
+  color: var(--tl-text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.tl-empty-state i {
+  font-size: 24px;
+  opacity: 0.6;
+}
+
+.tl-vocab-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tl-vocab-card {
+  padding: 10px 12px;
+  border-radius: var(--tl-radius-md);
+  border: 1px solid var(--tl-border);
+  background: var(--tl-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tl-vocab-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tl-vocab-word-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tl-vocab-word {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--tl-text);
+}
+
+.tl-vocab-meta {
+  font-size: 12px;
+  color: var(--tl-text-muted);
+}
+
+.tl-vocab-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tl-vocab-cn {
+  font-size: 13px;
+  color: var(--tl-accent);
+  font-weight: 500;
+}
+
+.tl-vocab-ctx {
+  font-size: 12px;
+  color: var(--tl-text-muted);
+  padding: 5px 8px;
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface-soft);
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  word-break: break-word;
+}
+
+.tl-vocab-ctx i {
+  margin-top: 3px;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.tl-vocab-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.tl-mini-select {
+  width: auto;
+  max-width: 160px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.tl-vocab-io {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
 }
 
 /* ========== 点按单词词典气泡 ========== */
@@ -723,26 +908,29 @@ const CSS_TEXT = `
     grid-template-columns: 1fr;
   }
 
-  /* 手机端词典气泡改为底部悬浮卡片，单手易点按且绝不溢出屏幕 */
+  /* 手机端词典气泡由智能避让算法动态决定停靠在上方或下方，此处仅规范圆角与触控尺寸 */
   .tl-popover {
-    left: 10px !important;
-    right: 10px !important;
-    top: auto !important;
-    bottom: max(12px, env(safe-area-inset-bottom, 12px)) !important;
-    width: auto !important;
-    max-width: calc(100vw - 20px) !important;
-    max-height: 62dvh;
     border-radius: 14px;
+    max-width: calc(100vw - 20px);
+  }
+
+  .tl-mes-footer {
+    opacity: 0.72;
+  }
+
+  .tl-footer-pill {
+    padding: 4px 10px;
+    font-size: 12px;
   }
 
   .tl-icon-btn {
-    min-height: 34px;
-    padding: 6px 10px;
+    min-height: 32px;
+    padding: 5px 9px;
     font-size: 12.5px;
   }
 
   .tl-pop-footer {
-    padding: 10px 12px;
+    padding: 9px 12px;
   }
 
   .tl-pop-footer .tl-icon-btn {
@@ -751,12 +939,6 @@ const CSS_TEXT = `
 
   .tl-sel-bar {
     max-width: calc(100vw - 20px);
-  }
-
-  .tl-mes-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 14px;
   }
 }
 `;

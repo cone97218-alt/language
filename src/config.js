@@ -1,6 +1,6 @@
 import { getHostWindow } from './core/host.js';
 
-export const VERSION = '1.1.0';
+export const VERSION = '2.0.0';
 export const STORAGE_KEY = 'tavern_language_config_v1';
 
 // 系统级始终跳过的非正文标签（防止破坏脚本、样式与插件自身节点）
@@ -15,10 +15,12 @@ export const SYSTEM_EXCLUDE_SELECTORS = [
   'video',
   '.tl-ignore',
   '.tl-trans-block',
+  '.tl-mes-footer',
   '.tl-word',
   '.tl-popover',
   '.tl-sel-bar',
   '.tl-modal-backdrop',
+  '#tl-vue-root',
 ];
 
 export const DEFAULT_CONFIG = {

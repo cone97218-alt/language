@@ -15,12 +15,25 @@
   const REPO = 'cone97218-alt/language';
   const BRANCH = 'main';
   const ENTRY = 'dist/tavern-language.js';
-  const ts = Date.now();
 
+  // 先实时获取 main 最新 commit SHA，绕过 jsDelivr @main 分支边缘缓存
+  let ref = BRANCH;
+  try {
+    const metaRes = await fetch(`https://api.github.com/repos/${REPO}/commits/${BRANCH}`, {
+      headers: { Accept: 'application/vnd.github+json' },
+      cache: 'no-store',
+    });
+    if (metaRes.ok) {
+      const meta = await metaRes.json();
+      if (meta && meta.sha) ref = meta.sha;
+    }
+  } catch {}
+
+  const ts = Date.now();
   const SOURCES = [
-    `https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}/${ENTRY}?t=${ts}`,
-    `https://fastly.jsdelivr.net/gh/${REPO}@${BRANCH}/${ENTRY}?t=${ts}`,
-    `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${ENTRY}?t=${ts}`,
+    `https://cdn.jsdelivr.net/gh/${REPO}@${ref}/${ENTRY}`,
+    `https://fastly.jsdelivr.net/gh/${REPO}@${ref}/${ENTRY}`,
+    `https://raw.githubusercontent.com/${REPO}/${ref}/${ENTRY}?t=${ts}`,
   ];
 
   for (const url of SOURCES) {

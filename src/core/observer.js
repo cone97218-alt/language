@@ -33,6 +33,7 @@ export function clearAllProcessedMessages() {
   doc.querySelectorAll('#chat .mes .mes_text').forEach((el) => untokenizeElement(el));
   doc.querySelectorAll('#chat .mes .tl-trans-block').forEach((el) => el.remove());
   doc.querySelectorAll('#chat .mes .tl-mes-btn').forEach((el) => el.remove());
+  doc.querySelectorAll('#chat .mes .tl-mes-footer').forEach((el) => el.remove());
 }
 
 function scheduleProcess(delay = 280) {
@@ -82,7 +83,8 @@ export function startObserving() {
             target.classList?.contains('tl-word') ||
             target.classList?.contains('tl-trans-block') ||
             target.classList?.contains('tl-mes-btn') ||
-            target.closest?.('.tl-popover, .tl-sel-bar, .tl-modal-backdrop')
+            target.classList?.contains('tl-mes-footer') ||
+            target.closest?.('.tl-popover, .tl-sel-bar, .tl-modal-backdrop, .tl-mes-footer, #tl-vue-root')
           ) {
             return false;
           }

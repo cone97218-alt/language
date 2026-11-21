@@ -1,13 +1,16 @@
-// 酒馆助手沉浸式外语学习插件主入口
+// 酒馆助手沉浸式外语学习插件主入口 (Vue 3 架构)
 import { getHostWindow, notify } from './core/host.js';
-import { loadConfig, onConfigChange, getConfig, updateConfig, VERSION } from './config.js';
+import { onConfigChange, getConfig, updateConfig, VERSION } from './config.js';
 import { syncPromptInjection, clearInjectedPrompt } from './core/promptInjector.js';
 import { startObserving, stopObserving, processAllMessages, clearAllProcessedMessages } from './core/observer.js';
 import { stopSpeaking } from './core/tts.js';
+import { initGestureGuard, destroyGestureGuard } from './core/gestureGuard.js';
 import { injectStyles, removeStyles, applyThemeAttributes } from './ui/styles.js';
-import { initPopover, destroyPopover } from './ui/popover.js';
-import { initSelectionBar, destroySelectionBar } from './ui/selectionBar.js';
-import { mountSettingsEntry, unmountSettingsEntry, openSettingsModal } from './ui/settingsModal.js';
+import { mountHamburgerEntries, unmountHamburgerEntries } from './ui/menuEntry.js';
+import { initAppState, syncConfigToState, openModal } from './ui/vue/appState.js';
+import { mountVueUi, unmountVueUi } from './ui/vue/App.js';
+import { initPopoverListeners, destroyPopoverListeners } from './ui/vue/WordPopover.js';
+import { initSelectionListeners, destroySelectionListeners } from './ui/vue/SelectionBar.js';
 
 // 注册内置语种包（英语 / 日语 / 法语）
 import { registerLanguage, getLanguage, listLanguages } from './languages/registry.js';
@@ -39,9 +42,11 @@ export function destroy() {
   stopSpeaking();
   clearInjectedPrompt();
   stopObserving();
-  destroyPopover();
-  destroySelectionBar();
-  unmountSettingsEntry();
+  destroyPopoverListeners();
+  destroySelectionListeners();
+  destroyGestureGuard();
+  unmountHamburgerEntries();
+  unmountVueUi();
   clearAllProcessedMessages();
   removeStyles();
 
@@ -62,15 +67,18 @@ export function init(options = {}) {
     }
   }
 
-  loadConfig();
+  initAppState();
   injectStyles();
-  mountSettingsEntry();
-  initPopover();
-  initSelectionBar();
+  mountVueUi();
+  initGestureGuard();
+  initPopoverListeners();
+  initSelectionListeners();
+  mountHamburgerEntries();
   syncPromptInjection();
   startObserving();
 
   unsubscribeConfig = onConfigChange((cfg) => {
+    syncConfigToState();
     applyThemeAttributes(cfg);
     syncPromptInjection();
     if (!cfg.enabled) {
@@ -84,7 +92,8 @@ export function init(options = {}) {
     version: VERSION,
     init,
     destroy,
-    openSettings: openSettingsModal,
+    openSettings: () => openModal('general'),
+    openVocabBook: () => openModal('vocab'),
     getConfig,
     updateConfig,
     registerLanguage,
@@ -113,5 +122,10 @@ export {
   registerLanguage,
   registerDictionary,
   registerTranslator,
-  openSettingsModal as openSettings,
 };
+export function openSettings() {
+  openModal('general');
+}
+export function openVocabBook() {
+  openModal('vocab');
+}
