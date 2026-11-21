@@ -82,13 +82,61 @@ async function toggleParagraphTranslations(mesEl, btnEl) {
     return { text, transDiv };
   });
 
-  const concurrency = 3;
-  let index = 0;
-  async function worker() {
-    while (index < pairs.length) {
-      const item = pairs[index++];
+  // 合并多段落为少量批量请求（每批 <= 1500 字），大幅减少请求次数，避免触发免费接口 429 限流
+  const batches = [];
+  let currentBatch = [];
+  let currentLen = 0;
+  for (const item of pairs) {
+    const lineText = item.text.replace(/\r?\n+/g, ' ');
+    if (currentBatch.length > 0 && currentLen + lineText.length + 1 > 1500) {
+      batches.push(currentBatch);
+      currentBatch = [];
+      currentLen = 0;
+    }
+    currentBatch.push({ ...item, lineText });
+    currentLen += lineText.length + 1;
+  }
+  if (currentBatch.length > 0) batches.push(currentBatch);
+
+  for (const batch of batches) {
+    if (batch.length === 1) {
       try {
-        const cn = await translateText(item.text, { from: lang, to: 'zh-CN' });
+        const cn = await translateText(batch[0].lineText, { from: lang, to: 'zh-CN' });
+        batch[0].transDiv.classList.remove('tl-trans-loading');
+        batch[0].transDiv.textContent = cn;
+      } catch (err) {
+        batch[0].transDiv.classList.remove('tl-trans-loading');
+        batch[0].transDiv.textContent = `翻译失败：${err?.message || '请重试'}`;
+      }
+      continue;
+    }
+
+    try {
+      const joined = batch.map((b) => b.lineText).join('\n');
+      const translated = await translateText(joined, { from: lang, to: 'zh-CN' });
+      const lines = translated.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+      if (lines.length === batch.length) {
+        batch.forEach((b, i) => {
+          b.transDiv.classList.remove('tl-trans-loading');
+          b.transDiv.textContent = lines[i];
+        });
+        continue;
+      }
+    } catch (err) {
+      // 批量失败若是 429 直接提示，不再继续轰炸接口
+      if (String(err?.message || '').includes('429')) {
+        batch.forEach((b) => {
+          b.transDiv.classList.remove('tl-trans-loading');
+          b.transDiv.textContent = `翻译失败：${err.message}`;
+        });
+        continue;
+      }
+    }
+
+    // 行数不匹配时降级逐段顺序翻译
+    for (const item of batch) {
+      try {
+        const cn = await translateText(item.lineText, { from: lang, to: 'zh-CN' });
         item.transDiv.classList.remove('tl-trans-loading');
         item.transDiv.textContent = cn;
       } catch (err) {
@@ -97,8 +145,6 @@ async function toggleParagraphTranslations(mesEl, btnEl) {
       }
     }
   }
-
-  await Promise.all(Array.from({ length: Math.min(concurrency, pairs.length) }, () => worker()));
   btnEl.innerHTML = '<i class="fa-solid fa-language"></i>';
 }
 
