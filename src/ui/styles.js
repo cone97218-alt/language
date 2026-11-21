@@ -205,9 +205,11 @@ const CSS_TEXT = `
 }
 
 .tl-inline-form {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
+  width: 100%;
 }
 
 .tl-book-manage-row {
@@ -218,13 +220,18 @@ const CSS_TEXT = `
 }
 
 .tl-vocab-filters {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
   gap: 8px;
+  width: 100%;
+  align-items: center;
 }
 
-.tl-lang-filter {
-  width: 112px;
-  flex-shrink: 0;
+.tl-select.tl-lang-filter {
+  width: 100%;
+  min-width: 0;
+  padding-left: 8px;
+  padding-right: 6px;
 }
 
 .tl-empty-state {
@@ -323,9 +330,10 @@ const CSS_TEXT = `
   margin-top: 2px;
 }
 
-.tl-mini-select {
+.tl-select.tl-mini-select {
   width: auto;
-  max-width: 160px;
+  min-width: 88px;
+  max-width: 150px;
   padding: 3px 8px;
   font-size: 12px;
 }
@@ -773,6 +781,7 @@ const CSS_TEXT = `
 .tl-select,
 .tl-textarea {
   width: 100%;
+  min-width: 0;
   max-width: 100%;
   background: var(--tl-surface);
   color: var(--tl-text);
