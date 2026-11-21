@@ -4,9 +4,9 @@ import { getConfig } from '../config.js';
 const STYLE_ID = 'tl-injected-styles';
 
 const CSS_TEXT = `
-/* ========== Tavern Language: 主题变量系统 ========== */
+/* ========== Tavern Language: 统一 Design Tokens 与主题变量 ========== */
 :root[data-tl-theme="tavern"] {
-  --tl-bg: var(--SmartThemeBlurTintColor, rgba(24, 26, 34, 0.94));
+  --tl-bg: var(--SmartThemeBlurTintColor, rgba(24, 26, 34, 0.95));
   --tl-surface: var(--SmartThemeChatTintColor, rgba(34, 37, 48, 0.9));
   --tl-surface-soft: color-mix(in srgb, var(--SmartThemeBodyColor, #e8eaf0) 8%, transparent);
   --tl-text: var(--SmartThemeBodyColor, #e8eaf0);
@@ -16,6 +16,9 @@ const CSS_TEXT = `
   --tl-border: var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.14));
   --tl-shadow: 0 10px 30px var(--SmartThemeShadowColor, rgba(0, 0, 0, 0.36));
   --tl-blur: var(--SmartThemeBlurStrength, 10px);
+  --tl-radius-lg: 14px;
+  --tl-radius-md: 9px;
+  --tl-radius-sm: 6px;
   --tl-pos-noun: #60a5fa;
   --tl-pos-verb: #34d399;
   --tl-pos-adj: #f59e0b;
@@ -24,8 +27,8 @@ const CSS_TEXT = `
 }
 
 :root[data-tl-theme="light"] {
-  --tl-bg: rgba(255, 255, 255, 0.97);
-  --tl-surface: #f5f7fb;
+  --tl-bg: rgba(255, 255, 255, 0.98);
+  --tl-surface: #f4f6fa;
   --tl-surface-soft: rgba(15, 23, 42, 0.05);
   --tl-text: #1e2433;
   --tl-text-muted: #5f6b82;
@@ -34,6 +37,9 @@ const CSS_TEXT = `
   --tl-border: rgba(15, 23, 42, 0.12);
   --tl-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
   --tl-blur: 12px;
+  --tl-radius-lg: 14px;
+  --tl-radius-md: 9px;
+  --tl-radius-sm: 6px;
   --tl-pos-noun: #2563eb;
   --tl-pos-verb: #059669;
   --tl-pos-adj: #d97706;
@@ -42,7 +48,7 @@ const CSS_TEXT = `
 }
 
 :root[data-tl-theme="dark"] {
-  --tl-bg: rgba(24, 26, 33, 0.97);
+  --tl-bg: rgba(24, 26, 33, 0.98);
   --tl-surface: #21242f;
   --tl-surface-soft: rgba(255, 255, 255, 0.07);
   --tl-text: #e7eaf2;
@@ -52,6 +58,9 @@ const CSS_TEXT = `
   --tl-border: rgba(255, 255, 255, 0.12);
   --tl-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
   --tl-blur: 12px;
+  --tl-radius-lg: 14px;
+  --tl-radius-md: 9px;
+  --tl-radius-sm: 6px;
   --tl-pos-noun: #60a5fa;
   --tl-pos-verb: #34d399;
   --tl-pos-adj: #fbbf24;
@@ -59,11 +68,22 @@ const CSS_TEXT = `
   --tl-pos-other: #94a3b8;
 }
 
+/* 统一盒模型，防止移动端任何子元素撑破容器 */
+.tl-popover,
+.tl-popover *,
+.tl-sel-bar,
+.tl-sel-bar *,
+.tl-modal-backdrop,
+.tl-modal-backdrop * {
+  box-sizing: border-box;
+}
+
 /* ========== 原生消息内单词交互 ========== */
 .tl-word {
   cursor: pointer;
   border-radius: 3px;
   transition: background-color 0.14s ease, color 0.14s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 :root[data-tl-underline="1"] .tl-word:hover {
@@ -85,15 +105,16 @@ const CSS_TEXT = `
 
 /* ========== 段落内嵌双语译文块 ========== */
 .tl-trans-block {
-  margin: 4px 0 10px 0;
+  margin: 5px 0 10px 0;
   padding: 6px 10px;
   border-left: 2.5px solid var(--tl-accent);
   background: var(--tl-surface-soft);
   color: var(--tl-text-muted);
   font-size: 0.9em;
   line-height: 1.55;
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 var(--tl-radius-sm) var(--tl-radius-sm) 0;
   user-select: text;
+  word-break: break-word;
 }
 
 .tl-trans-block.tl-trans-loading {
@@ -105,19 +126,21 @@ const CSS_TEXT = `
   display: none;
 }
 
-/* ========== 原生消息栏微按钮 ========== */
+/* ========== 原生消息栏 Font Awesome 微按钮 ========== */
 .tl-mes-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   opacity: 0.72;
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 5px;
+  width: 24px;
+  height: 24px;
+  font-size: 13px;
+  border-radius: var(--tl-radius-sm);
   color: var(--SmartThemeBodyColor, inherit);
   transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .tl-mes-btn:hover,
@@ -131,14 +154,15 @@ const CSS_TEXT = `
 .tl-popover {
   position: fixed;
   z-index: 99990;
-  width: min(360px, calc(100vw - 24px));
-  max-height: min(440px, 70vh);
+  width: min(360px, calc(100vw - 20px));
+  max-width: calc(100vw - 20px);
+  max-height: min(440px, 68dvh);
   display: flex;
   flex-direction: column;
   background: var(--tl-bg);
   color: var(--tl-text);
   border: 1px solid var(--tl-border);
-  border-radius: 12px;
+  border-radius: var(--tl-radius-lg);
   box-shadow: var(--tl-shadow);
   backdrop-filter: blur(var(--tl-blur));
   -webkit-backdrop-filter: blur(var(--tl-blur));
@@ -150,7 +174,7 @@ const CSS_TEXT = `
 }
 
 @keyframes tlFadeIn {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -190,12 +214,13 @@ const CSS_TEXT = `
   font-size: 13px;
   color: var(--tl-accent);
   font-weight: 500;
+  word-break: break-word;
 }
 
 .tl-pop-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   flex-shrink: 0;
 }
 
@@ -203,20 +228,29 @@ const CSS_TEXT = `
   border: 1px solid var(--tl-border);
   background: var(--tl-surface-soft);
   color: var(--tl-text);
-  border-radius: 7px;
-  padding: 4px 8px;
+  border-radius: var(--tl-radius-sm);
+  padding: 5px 9px;
+  min-height: 28px;
   font-size: 12px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
   transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .tl-icon-btn:hover {
   background: var(--tl-accent-soft);
   border-color: var(--tl-accent);
   color: var(--tl-accent);
+}
+
+.tl-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .tl-pop-sources {
@@ -229,14 +263,15 @@ const CSS_TEXT = `
 }
 
 .tl-source-pill {
-  font-size: 11px;
-  padding: 2px 8px;
+  font-size: 11.5px;
+  padding: 3px 9px;
   border-radius: 999px;
   border: 1px solid var(--tl-border);
   background: transparent;
   color: var(--tl-text-muted);
   cursor: pointer;
   transition: all 0.14s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .tl-source-pill:hover,
@@ -249,6 +284,8 @@ const CSS_TEXT = `
 .tl-pop-body {
   padding: 10px 14px 12px;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   flex: 1;
 }
 
@@ -282,6 +319,7 @@ const CSS_TEXT = `
   margin: 4px 0 6px 4px;
   padding-left: 8px;
   border-left: 2px solid var(--tl-border);
+  word-break: break-word;
 }
 
 .tl-def-cn {
@@ -296,11 +334,20 @@ const CSS_TEXT = `
 }
 
 .tl-def-example {
-  margin-top: 3px;
+  margin-top: 4px;
   font-size: 12px;
   color: var(--tl-text-muted);
   font-style: italic;
   cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.tl-def-example i {
+  margin-top: 3px;
+  font-size: 11px;
+  flex-shrink: 0;
 }
 
 .tl-def-example:hover {
@@ -311,7 +358,7 @@ const CSS_TEXT = `
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
   padding: 8px 14px;
   border-top: 1px solid var(--tl-border);
   background: var(--tl-surface-soft);
@@ -320,10 +367,11 @@ const CSS_TEXT = `
 .tl-sentence-box {
   margin-top: 8px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--tl-radius-md);
   background: var(--tl-surface-soft);
   border: 1px solid var(--tl-border);
   font-size: 12.5px;
+  word-break: break-word;
 }
 
 .tl-sentence-orig {
@@ -339,21 +387,22 @@ const CSS_TEXT = `
 .tl-sel-bar {
   position: fixed;
   z-index: 99992;
-  max-width: min(380px, calc(100vw - 24px));
+  max-width: min(380px, calc(100vw - 20px));
   background: var(--tl-bg);
   color: var(--tl-text);
   border: 1px solid var(--tl-border);
-  border-radius: 10px;
+  border-radius: var(--tl-radius-md);
   box-shadow: var(--tl-shadow);
   backdrop-filter: blur(var(--tl-blur));
   -webkit-backdrop-filter: blur(var(--tl-blur));
-  padding: 5px 7px;
+  padding: 6px 8px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
   animation: tlFadeIn 0.12s ease-out;
 }
 
 .tl-sel-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 5px;
 }
@@ -365,77 +414,37 @@ const CSS_TEXT = `
   font-size: 13px;
   line-height: 1.55;
   color: var(--tl-text);
-  max-height: 200px;
+  max-height: 180px;
   overflow-y: auto;
+  word-break: break-word;
 }
 
-/* ========== 设置入口按钮（极简适配） ========== */
-.tl-top-entry {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0 7px;
-  font-size: 15px;
-  opacity: 0.82;
-  color: var(--SmartThemeBodyColor, #e8eaf0);
-  transition: opacity 0.15s ease, color 0.15s ease;
-  user-select: none;
-}
-
-.tl-top-entry:hover {
-  opacity: 1;
-  color: var(--tl-accent);
-}
-
-.tl-float-entry {
-  position: fixed;
-  right: 14px;
-  bottom: 74px;
-  z-index: 99980;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1px solid var(--tl-border);
-  background: var(--tl-bg);
-  color: var(--tl-text);
-  box-shadow: var(--tl-shadow);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 15px;
-  opacity: 0.78;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.tl-float-entry:hover {
-  opacity: 1;
-  transform: scale(1.06);
-}
-
-/* ========== 设置弹窗 ========== */
+/* ========== 设置弹窗（桌面居中 / 安卓手机端底部抽屉） ========== */
 .tl-modal-backdrop {
   position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100dvh;
   z-index: 99995;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.48);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
+  overflow: hidden;
   animation: tlFadeIn 0.14s ease-out;
 }
 
 .tl-modal {
   width: min(540px, 100%);
-  max-height: min(680px, 88vh);
+  max-width: 100%;
+  max-height: min(680px, 86dvh);
   display: flex;
   flex-direction: column;
   background: var(--tl-bg);
   color: var(--tl-text);
   border: 1px solid var(--tl-border);
-  border-radius: 14px;
+  border-radius: var(--tl-radius-lg);
   box-shadow: var(--tl-shadow);
   backdrop-filter: blur(var(--tl-blur));
   -webkit-backdrop-filter: blur(var(--tl-blur));
@@ -448,16 +457,19 @@ const CSS_TEXT = `
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
+  gap: 10px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--tl-border);
+  flex-shrink: 0;
 }
 
 .tl-modal-title {
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 700;
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .tl-modal-version {
@@ -467,23 +479,30 @@ const CSS_TEXT = `
   border-radius: 999px;
   background: var(--tl-accent-soft);
   color: var(--tl-accent);
+  flex-shrink: 0;
 }
 
 .tl-tabs {
   display: flex;
-  gap: 4px;
-  padding: 8px 18px 0;
+  gap: 2px;
+  padding: 6px 14px 0;
   border-bottom: 1px solid var(--tl-border);
+  overflow-x: auto;
+  flex-shrink: 0;
 }
 
 .tl-tab {
-  padding: 7px 12px;
+  padding: 8px 10px;
   border: none;
   background: transparent;
   color: var(--tl-text-muted);
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   border-bottom: 2px solid transparent;
   transition: color 0.14s ease, border-color 0.14s ease;
 }
@@ -494,8 +513,10 @@ const CSS_TEXT = `
 }
 
 .tl-modal-body {
-  padding: 16px 18px;
+  padding: 14px 16px;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   flex: 1;
 }
 
@@ -511,6 +532,11 @@ const CSS_TEXT = `
   margin-bottom: 12px;
 }
 
+.tl-field-row > div {
+  min-width: 0;
+  flex: 1;
+}
+
 .tl-label {
   display: block;
   font-weight: 600;
@@ -522,19 +548,20 @@ const CSS_TEXT = `
   font-size: 12px;
   color: var(--tl-text-muted);
   margin-top: 3px;
+  word-break: break-word;
 }
 
 .tl-input,
 .tl-select,
 .tl-textarea {
   width: 100%;
-  box-sizing: border-box;
+  max-width: 100%;
   background: var(--tl-surface);
   color: var(--tl-text);
   border: 1px solid var(--tl-border);
-  border-radius: 8px;
+  border-radius: var(--tl-radius-md);
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: 13.5px;
   outline: none;
 }
 
@@ -550,21 +577,30 @@ const CSS_TEXT = `
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+.tl-tts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .tl-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .tl-chip {
   font-size: 12px;
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--tl-border);
   background: var(--tl-surface-soft);
   color: var(--tl-text-muted);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .tl-chip:hover {
@@ -584,7 +620,7 @@ const CSS_TEXT = `
   justify-content: space-between;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--tl-radius-md);
   border: 1px solid var(--tl-border);
   background: var(--tl-surface);
 }
@@ -602,25 +638,39 @@ const CSS_TEXT = `
 .tl-dict-row-desc {
   font-size: 11.5px;
   color: var(--tl-text-muted);
+  word-break: break-word;
+}
+
+.tl-dict-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .tl-modal-footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  padding: 12px 18px;
+  padding: 12px 16px;
   border-top: 1px solid var(--tl-border);
+  flex-shrink: 0;
 }
 
 .tl-btn {
   padding: 7px 14px;
-  border-radius: 8px;
+  border-radius: var(--tl-radius-md);
   border: 1px solid var(--tl-border);
   background: var(--tl-surface-soft);
   color: var(--tl-text);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
 }
 
 .tl-btn:hover {
@@ -637,6 +687,77 @@ const CSS_TEXT = `
 .tl-btn-primary:hover {
   color: #ffffff;
   filter: brightness(1.08);
+}
+
+/* ========== 安卓 / 移动端深度响应式适配（彻底杜绝溢出屏幕） ========== */
+@media (max-width: 640px) {
+  .tl-modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .tl-modal {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 86dvh;
+    border-radius: 16px 16px 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .tl-modal-header {
+    padding: 12px 14px;
+  }
+
+  .tl-modal-body {
+    padding: 12px 14px;
+  }
+
+  .tl-modal-footer {
+    padding: 10px 14px;
+  }
+
+  .tl-tts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* 手机端词典气泡改为底部悬浮卡片，单手易点按且绝不溢出屏幕 */
+  .tl-popover {
+    left: 10px !important;
+    right: 10px !important;
+    top: auto !important;
+    bottom: max(12px, env(safe-area-inset-bottom, 12px)) !important;
+    width: auto !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: 62dvh;
+    border-radius: 14px;
+  }
+
+  .tl-icon-btn {
+    min-height: 34px;
+    padding: 6px 10px;
+    font-size: 12.5px;
+  }
+
+  .tl-pop-footer {
+    padding: 10px 12px;
+  }
+
+  .tl-pop-footer .tl-icon-btn {
+    flex: 1;
+  }
+
+  .tl-sel-bar {
+    max-width: calc(100vw - 20px);
+  }
+
+  .tl-mes-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
 }
 `;
 

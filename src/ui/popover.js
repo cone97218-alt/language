@@ -11,7 +11,6 @@ let currentWordData = null;
 let currentContextSentence = '';
 let currentLang = 'en';
 let clickHandler = null;
-let outsideClickHandler = null;
 let keydownHandler = null;
 
 function escapeHtml(str) {
@@ -37,8 +36,16 @@ export function closePopover() {
 function positionPopover(anchorRect) {
   if (!popoverEl) return;
   const win = getHostWindow();
-  const vw = win.innerWidth;
-  const vh = win.innerHeight;
+  const vw = win.visualViewport?.width || win.innerWidth;
+  const vh = win.visualViewport?.height || win.innerHeight;
+
+  // 移动端（<= 640px）由 CSS 统一固定为底部悬浮卡片，不设置行内坐标，彻底杜绝溢出
+  if (vw <= 640) {
+    popoverEl.style.left = '';
+    popoverEl.style.top = '';
+    return;
+  }
+
   const popRect = popoverEl.getBoundingClientRect();
   const margin = 10;
 
@@ -73,10 +80,10 @@ function renderSourcePills(activeSourceId) {
 
 function renderEntryContent(entry) {
   if (!entry) {
-    return `<div class="tl-def-orig">未找到该词条，可点击上方「AI 语境精讲」或下方「译整句」。</div>`;
+    return `<div class="tl-def-orig">未找到该词条，可点击上方「AI 语境精讲」或下方「翻译所在句」。</div>`;
   }
 
-  const meaningsHtml = (entry.meanings || [])
+  return (entry.meanings || [])
     .map((m) => {
       const tone = m.posInfo?.tone || 'other';
       const label = [m.posInfo?.abbr, m.posInfo?.cn].filter(Boolean).join(' ');
@@ -85,7 +92,7 @@ function renderEntryContent(entry) {
           const cnHtml = d.cn ? `<div class="tl-def-cn">${escapeHtml(d.cn)}</div>` : '';
           const origHtml = d.text ? `<div class="tl-def-orig">${escapeHtml(d.text)}</div>` : '';
           const exHtml = d.example
-            ? `<div class="tl-def-example" data-tl-speak-ex="${escapeHtml(d.example)}" title="点击朗读例句">🔊 ${escapeHtml(d.example)}</div>`
+            ? `<div class="tl-def-example" data-tl-speak-ex="${escapeHtml(d.example)}" title="点击朗读例句"><i class="fa-solid fa-volume-high"></i><span>${escapeHtml(d.example)}</span></div>`
             : '';
           return `<div class="tl-def-item">${cnHtml}${origHtml}${exHtml}</div>`;
         })
@@ -98,8 +105,6 @@ function renderEntryContent(entry) {
       `;
     })
     .join('');
-
-  return meaningsHtml;
 }
 
 function renderPopoverShell(word, entry, loading = false, activeSourceId = '') {
@@ -122,20 +127,20 @@ function renderPopoverShell(word, entry, loading = false, activeSourceId = '') {
         ${briefCn ? `<div class="tl-pop-brief">${escapeHtml(briefCn)}</div>` : ''}
       </div>
       <div class="tl-pop-actions">
-        <button type="button" class="tl-icon-btn" data-tl-action="speak-word" title="朗读单词">🔊</button>
-        <button type="button" class="tl-icon-btn" data-tl-action="close" title="关闭">✕</button>
+        <button type="button" class="tl-icon-btn" data-tl-action="speak-word" title="朗读单词"><i class="fa-solid fa-volume-high"></i></button>
+        <button type="button" class="tl-icon-btn" data-tl-action="close" title="关闭"><i class="fa-solid fa-xmark"></i></button>
       </div>
     </div>
     <div class="tl-pop-sources">
       ${renderSourcePills(activeSourceId || entry?.sourceId || '')}
     </div>
     <div class="tl-pop-body">
-      ${loading ? '<div class="tl-def-orig">正在查询词典...</div>' : renderEntryContent(entry)}
+      ${loading ? '<div class="tl-def-orig"><i class="fa-solid fa-spinner fa-spin"></i> 正在查询词典...</div>' : renderEntryContent(entry)}
       <div class="tl-sentence-box" data-tl-sentence-box style="display:none;"></div>
     </div>
     <div class="tl-pop-footer">
-      <button type="button" class="tl-icon-btn" data-tl-action="speak-sentence">🔊 朗读所在句</button>
-      <button type="button" class="tl-icon-btn" data-tl-action="translate-sentence">🌐 翻译所在句</button>
+      <button type="button" class="tl-icon-btn" data-tl-action="speak-sentence"><i class="fa-solid fa-volume-high"></i><span>朗读所在句</span></button>
+      <button type="button" class="tl-icon-btn" data-tl-action="translate-sentence"><i class="fa-solid fa-language"></i><span>翻译所在句</span></button>
     </div>
   `;
 }
@@ -175,14 +180,12 @@ async function openWordPopover(wordEl, sourceId = null) {
     sourceId,
   });
 
-  // 如果用户已经关闭了或点了另一个词，放弃渲染旧结果
   if (!popoverEl || activeWordEl !== wordEl) return;
 
   currentWordData = entry;
   popoverEl.innerHTML = renderPopoverShell(word, entry, false, sourceId || entry?.sourceId || '');
   positionPopover(anchorRect);
 
-  // 如果开启自动发音且词典提供了更准确的真人音频
   if (!sourceId && getConfig().autoSpeakWord && entry?.audioUrl) {
     speakWord(word, { lang, audioUrl: entry.audioUrl }).catch(() => {});
   }
@@ -193,7 +196,6 @@ export function initPopover() {
   const doc = getHostDocument();
 
   clickHandler = (e) => {
-    // 1. 点击词典气泡内部按钮
     const pop = e.target?.closest?.('.tl-popover');
     if (pop) {
       const actionBtn = e.target.closest('[data-tl-action]');
@@ -212,7 +214,7 @@ export function initPopover() {
           const box = pop.querySelector('[data-tl-sentence-box]');
           if (box && currentContextSentence) {
             box.style.display = 'block';
-            box.innerHTML = `<div class="tl-sentence-orig">${escapeHtml(currentContextSentence)}</div><div class="tl-def-orig">正在翻译所在句...</div>`;
+            box.innerHTML = `<div class="tl-sentence-orig">${escapeHtml(currentContextSentence)}</div><div class="tl-def-orig"><i class="fa-solid fa-spinner fa-spin"></i> 正在翻译所在句...</div>`;
             translateText(currentContextSentence, { from: currentLang, to: 'zh-CN' })
               .then((cn) => {
                 if (!popoverEl) return;
@@ -228,14 +230,12 @@ export function initPopover() {
         return;
       }
 
-      // 切换词典源
       const sourceBtn = e.target.closest('[data-tl-source]');
       if (sourceBtn && activeWordEl) {
         openWordPopover(activeWordEl, sourceBtn.dataset.tlSource);
         return;
       }
 
-      // 点击例句朗读
       const exEl = e.target.closest('[data-tl-speak-ex]');
       if (exEl) {
         speakSentence(exEl.dataset.tlSpeakEx, { lang: currentLang }).catch(() => {});
@@ -244,10 +244,8 @@ export function initPopover() {
       return;
     }
 
-    // 2. 点击消息里的单词
     const wordEl = e.target?.closest?.('span.tl-word');
     if (wordEl && getConfig().enabled) {
-      // 如果用户正在拖选一段文字，不触发单词点击
       const sel = getHostWindow().getSelection();
       if (sel && sel.toString().trim().length > 0) {
         return;
@@ -257,7 +255,6 @@ export function initPopover() {
       return;
     }
 
-    // 3. 点击气泡外部关闭
     if (popoverEl && !e.target?.closest?.('.tl-popover')) {
       closePopover();
     }
@@ -277,10 +274,6 @@ export function destroyPopover() {
   if (clickHandler) {
     doc.removeEventListener('click', clickHandler, false);
     clickHandler = null;
-  }
-  if (outsideClickHandler) {
-    doc.removeEventListener('mousedown', outsideClickHandler, false);
-    outsideClickHandler = null;
   }
   if (keydownHandler) {
     doc.removeEventListener('keydown', keydownHandler, false);

@@ -25,14 +25,12 @@ function collectParagraphBlocks(mesTextEl, selectors) {
   const candidates = [...mesTextEl.querySelectorAll('p, li, blockquote')].filter((el) => {
     if (isElementExcluded(el, selectors)) return false;
     if (isInsideExcluded(el, mesTextEl, selectors)) return false;
-    // 跳过嵌套在其他已收集块里的子块，避免重复翻译
     if (el.parentElement?.closest('p, li, blockquote')) return false;
     return extractCleanText(el, mesTextEl, selectors).length > 0;
   });
 
   if (candidates.length > 0) return candidates;
 
-  // 若消息没有 <p> 标签（纯文本块），则以 .mes_text 整体作为一个段落块
   const fallbackText = extractCleanText(mesTextEl, mesTextEl, selectors);
   return fallbackText ? [mesTextEl] : [];
 }
@@ -58,7 +56,6 @@ async function toggleParagraphTranslations(mesEl, btnEl) {
   const doc = mesText.ownerDocument;
   const lang = cfg.targetLang || 'en';
 
-  // 先在每个段落下方插入加载态双语块
   const pairs = blocks.map((block) => {
     const text = extractCleanText(block, mesText, selectors);
     const transDiv = doc.createElement('div');
@@ -72,7 +69,6 @@ async function toggleParagraphTranslations(mesEl, btnEl) {
     return { text, transDiv };
   });
 
-  // 并发翻译各段落（限制并发数避免触发限流）
   const concurrency = 3;
   let index = 0;
   async function worker() {
@@ -92,11 +88,18 @@ async function toggleParagraphTranslations(mesEl, btnEl) {
   await Promise.all(Array.from({ length: Math.min(concurrency, pairs.length) }, () => worker()));
 }
 
+function setSpeakIcon(btnEl, isPlaying) {
+  btnEl.innerHTML = isPlaying
+    ? '<i class="fa-solid fa-stop"></i>'
+    : '<i class="fa-solid fa-volume-high"></i>';
+}
+
 async function toggleReadMessage(mesEl, btnEl) {
   if (speakingMesEl === mesEl) {
     stopSpeaking();
     speakingMesEl = null;
     btnEl.classList.remove('tl-active');
+    setSpeakIcon(btnEl, false);
     return;
   }
 
@@ -107,13 +110,16 @@ async function toggleReadMessage(mesEl, btnEl) {
   const fullText = extractCleanText(mesText, mesText, selectors);
   if (!fullText) return;
 
-  // 取消之前其他消息的朗读高亮
   mesEl.ownerDocument
     .querySelectorAll('.tl-mes-btn[data-tl-mes-action="speak"].tl-active')
-    .forEach((b) => b.classList.remove('tl-active'));
+    .forEach((b) => {
+      b.classList.remove('tl-active');
+      setSpeakIcon(b, false);
+    });
 
   speakingMesEl = mesEl;
   btnEl.classList.add('tl-active');
+  setSpeakIcon(btnEl, true);
   try {
     await speakSentence(fullText, { lang: cfg.targetLang || 'en' });
   } catch {
@@ -123,6 +129,7 @@ async function toggleReadMessage(mesEl, btnEl) {
       speakingMesEl = null;
     }
     btnEl.classList.remove('tl-active');
+    setSpeakIcon(btnEl, false);
   }
 }
 
@@ -141,7 +148,7 @@ export function attachMessageButtons(mesEl) {
   transBtn.className = 'tl-mes-btn tl-ignore';
   transBtn.dataset.tlMesAction = 'translate';
   transBtn.title = '整段双语对照翻译（点击展开/收起）';
-  transBtn.textContent = '译';
+  transBtn.innerHTML = '<i class="fa-solid fa-language"></i>';
   transBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     toggleParagraphTranslations(mesEl, transBtn);
@@ -151,7 +158,7 @@ export function attachMessageButtons(mesEl) {
   speakBtn.className = 'tl-mes-btn tl-ignore';
   speakBtn.dataset.tlMesAction = 'speak';
   speakBtn.title = '朗读整条消息（再次点击停止）';
-  speakBtn.textContent = '🔊';
+  setSpeakIcon(speakBtn, false);
   speakBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     toggleReadMessage(mesEl, speakBtn);

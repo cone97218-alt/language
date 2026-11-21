@@ -5,9 +5,11 @@ import { listDictionaries, getDictionaryChainForLang, clearDictionaryCache } fro
 import { listTranslators, clearTranslationCache } from '../translators/registry.js';
 
 let entryEl = null;
+let mountRetryTimer = null;
 let modalBackdrop = null;
 let activeTab = 'general';
 
+const ENTRY_ID = 'tl-options-entry';
 const QUICK_EXCLUDE_CHIPS = [
   'details',
   'blockquote',
@@ -106,7 +108,7 @@ function renderGeneralTab(draft) {
 
     <div class="tl-field-row">
       <div>
-        <div class="tl-label" style="margin:0;">在原生消息栏显示「译」「🔊」按钮</div>
+        <div class="tl-label" style="margin:0;">在原生消息栏显示翻译与朗读图标</div>
       </div>
       <input type="checkbox" data-tl-bind="ui.autoShowMesButtons" ${draft.ui.autoShowMesButtons ? 'checked' : ''} />
     </div>
@@ -121,7 +123,6 @@ function renderDictTab(draft) {
       ? draft.dictionaryChains[langCode]
       : getDictionaryChainForLang(langCode);
 
-  // 按已启用顺序 + 未启用顺序排列
   const orderedDicts = [
     ...currentChain.map((id) => availableDicts.find((d) => d.id === id)).filter(Boolean),
     ...availableDicts.filter((d) => !currentChain.includes(d.id)),
@@ -146,8 +147,10 @@ function renderDictTab(draft) {
                 </div>
                 ${
                   enabled
-                    ? `<button type="button" class="tl-icon-btn" data-tl-dict-move="${escapeHtml(d.id)}" data-dir="-1" ${idx === 0 ? 'disabled' : ''}>↑</button>
-                       <button type="button" class="tl-icon-btn" data-tl-dict-move="${escapeHtml(d.id)}" data-dir="1">↓</button>`
+                    ? `<div class="tl-dict-row-actions">
+                         <button type="button" class="tl-icon-btn" data-tl-dict-move="${escapeHtml(d.id)}" data-dir="-1" ${idx === 0 ? 'disabled' : ''} title="上移"><i class="fa-solid fa-chevron-up"></i></button>
+                         <button type="button" class="tl-icon-btn" data-tl-dict-move="${escapeHtml(d.id)}" data-dir="1" title="下移"><i class="fa-solid fa-chevron-down"></i></button>
+                       </div>`
                     : ''
                 }
               </div>
@@ -197,7 +200,7 @@ function renderDictTab(draft) {
 
     <div class="tl-field">
       <label class="tl-label">朗读与发音设置</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+      <div class="tl-tts-grid">
         <select class="tl-select" data-tl-bind="tts.engine">
           <option value="auto" ${draft.tts.engine === 'auto' ? 'selected' : ''}>自动（推荐）</option>
           <option value="webspeech" ${draft.tts.engine === 'webspeech' ? 'selected' : ''}>浏览器语音</option>
@@ -227,7 +230,7 @@ function renderExcludeTab(draft) {
       <div class="tl-hint">写在名单里的 HTML 标签、自定义标签或 CSS 选择器内部不会被分词，也不会被整段翻译破坏排版。</div>
       <div class="tl-chips">
         ${QUICK_EXCLUDE_CHIPS.map(
-          (chip) => `<button type="button" class="tl-chip" data-tl-add-chip="${escapeHtml(chip)}">+ ${escapeHtml(chip)}</button>`
+          (chip) => `<button type="button" class="tl-chip" data-tl-add-chip="${escapeHtml(chip)}"><i class="fa-solid fa-plus"></i><span>${escapeHtml(chip)}</span></button>`
         ).join('')}
       </div>
     </div>
@@ -272,19 +275,20 @@ export function openSettingsModal() {
       <div class="tl-modal">
         <div class="tl-modal-header">
           <div class="tl-modal-title">
-            <span>🌐 酒馆沉浸外语学习</span>
+            <i class="fa-solid fa-language"></i>
+            <span>酒馆外语学习</span>
             <span class="tl-modal-version">v${escapeHtml(VERSION)}</span>
           </div>
-          <button type="button" class="tl-icon-btn" data-tl-modal-action="close">✕</button>
+          <button type="button" class="tl-icon-btn" data-tl-modal-action="close" title="关闭"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="tl-tabs">
-          <button type="button" class="tl-tab ${activeTab === 'general' ? 'tl-active' : ''}" data-tl-tab="general">基础与主题</button>
-          <button type="button" class="tl-tab ${activeTab === 'dict' ? 'tl-active' : ''}" data-tl-tab="dict">词典与翻译</button>
-          <button type="button" class="tl-tab ${activeTab === 'exclude' ? 'tl-active' : ''}" data-tl-tab="exclude">安全分词排除</button>
+          <button type="button" class="tl-tab ${activeTab === 'general' ? 'tl-active' : ''}" data-tl-tab="general"><i class="fa-solid fa-sliders"></i><span>基础与主题</span></button>
+          <button type="button" class="tl-tab ${activeTab === 'dict' ? 'tl-active' : ''}" data-tl-tab="dict"><i class="fa-solid fa-book-open"></i><span>词典与翻译</span></button>
+          <button type="button" class="tl-tab ${activeTab === 'exclude' ? 'tl-active' : ''}" data-tl-tab="exclude"><i class="fa-solid fa-filter"></i><span>分词排除</span></button>
         </div>
         <div class="tl-modal-body">${bodyHtml}</div>
         <div class="tl-modal-footer">
-          <button type="button" class="tl-btn" data-tl-modal-action="clear-cache">清理缓存</button>
+          <button type="button" class="tl-btn" data-tl-modal-action="clear-cache"><i class="fa-solid fa-broom"></i><span>清缓存</span></button>
           <button type="button" class="tl-btn" data-tl-modal-action="close">取消</button>
           <button type="button" class="tl-btn tl-btn-primary" data-tl-modal-action="save">保存并应用</button>
         </div>
@@ -383,7 +387,6 @@ export function openSettingsModal() {
     const val = bindEl.type === 'checkbox' ? bindEl.checked : bindEl.value;
     setByPath(draft, path, val);
 
-    // 切换目标语种时自动适配默认难度等级
     if (path === 'targetLang') {
       const langDef = getLanguage(val);
       if (langDef?.levels?.length && !langDef.levels.some((l) => l.id === draft.promptInjection.level)) {
@@ -404,40 +407,86 @@ export function openSettingsModal() {
   render();
 }
 
-export function mountSettingsEntry() {
-  unmountSettingsEntry();
+/**
+ * 注入到酒馆左下角汉堡菜单（#options，含重新开始、删除消息、关闭聊天等）
+ * 自动复用原生菜单项的标签与样式类，保持与酒馆 UI 100% 一致
+ */
+function tryMountIntoOptionsMenu() {
   const doc = getHostDocument();
-  const topHolder = doc.getElementById('top-settings-holder');
+  // 清理旧版可能残留的顶部栏入口
+  const oldTop = doc.getElementById('tl-settings-entry');
+  if (oldTop) oldTop.remove();
 
-  if (topHolder) {
-    entryEl = doc.createElement('div');
-    entryEl.id = 'tl-settings-entry';
-    entryEl.className = 'tl-top-entry tl-ignore';
-    entryEl.title = '酒馆外语学习设置';
-    entryEl.textContent = '🌐';
-    topHolder.appendChild(entryEl);
-  } else {
-    entryEl = doc.createElement('button');
-    entryEl.id = 'tl-settings-entry';
-    entryEl.type = 'button';
-    entryEl.className = 'tl-float-entry tl-ignore';
-    entryEl.title = '酒馆外语学习设置';
-    entryEl.textContent = '🌐';
-    doc.body.appendChild(entryEl);
+  if (doc.getElementById(ENTRY_ID)) {
+    entryEl = doc.getElementById(ENTRY_ID);
+    return true;
   }
 
+  const refItem =
+    doc.getElementById('option_start_new_chat') ||
+    doc.getElementById('option_delete_mes') ||
+    doc.getElementById('option_close_chat');
+
+  const container =
+    refItem?.parentElement ||
+    doc.querySelector('#options .options-content') ||
+    doc.getElementById('options_content') ||
+    doc.getElementById('options');
+
+  if (!container) return false;
+
+  const tagName = refItem ? refItem.tagName.toLowerCase() : 'a';
+  entryEl = doc.createElement(tagName);
+  entryEl.id = ENTRY_ID;
+  if (refItem && refItem.className) {
+    entryEl.className = `${refItem.className} tl-ignore`;
+  } else {
+    entryEl.className = 'list-group-item tl-ignore';
+  }
+  entryEl.innerHTML = `<i class="fa-lg fa-solid fa-language"></i><span>外语学习设置</span>`;
   entryEl.addEventListener('click', (e) => {
+    e.preventDefault();
     e.stopPropagation();
+    // 打开设置弹窗时自动收起汉堡菜单
+    const optionsPopup = doc.getElementById('options');
+    if (optionsPopup) {
+      optionsPopup.style.display = 'none';
+    }
     openSettingsModal();
   });
+
+  container.appendChild(entryEl);
+  return true;
+}
+
+export function mountSettingsEntry() {
+  unmountSettingsEntry();
+  if (tryMountIntoOptionsMenu()) return;
+
+  // 若脚本启动时酒馆汉堡菜单尚未渲染完成，短暂重试挂载
+  let attempts = 0;
+  mountRetryTimer = setInterval(() => {
+    attempts++;
+    if (tryMountIntoOptionsMenu() || attempts >= 15) {
+      clearInterval(mountRetryTimer);
+      mountRetryTimer = null;
+    }
+  }, 500);
 }
 
 export function unmountSettingsEntry() {
+  if (mountRetryTimer) {
+    clearInterval(mountRetryTimer);
+    mountRetryTimer = null;
+  }
   closeSettingsModal();
   if (entryEl) {
     entryEl.remove();
     entryEl = null;
   }
-  const stale = getHostDocument().getElementById('tl-settings-entry');
+  const doc = getHostDocument();
+  const stale = doc.getElementById(ENTRY_ID);
   if (stale) stale.remove();
+  const oldTop = doc.getElementById('tl-settings-entry');
+  if (oldTop) oldTop.remove();
 }

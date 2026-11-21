@@ -27,8 +27,8 @@ export function closeSelectionBar() {
 function positionBar(rect) {
   if (!barEl) return;
   const win = getHostWindow();
-  const vw = win.innerWidth;
-  const vh = win.innerHeight;
+  const vw = win.visualViewport?.width || win.innerWidth;
+  const vh = win.visualViewport?.height || win.innerHeight;
   const bRect = barEl.getBoundingClientRect();
   const margin = 10;
 
@@ -39,6 +39,7 @@ function positionBar(rect) {
   if (top < margin) {
     top = Math.min(vh - bRect.height - margin, rect.bottom + 8);
   }
+  top = Math.max(margin, Math.min(top, vh - bRect.height - margin));
 
   barEl.style.left = `${Math.round(left)}px`;
   barEl.style.top = `${Math.round(top)}px`;
@@ -73,7 +74,7 @@ function showSelectionBar(text, rangeRect) {
         const resBox = barEl.querySelector('[data-tl-sel-result]');
         if (!resBox) return;
         resBox.style.display = 'block';
-        resBox.textContent = '正在翻译选中内容...';
+        resBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 正在翻译选中内容...';
         positionBar(rangeRect);
         try {
           const cn = await translateText(selectedText, { from: lang, to: 'zh-CN' });
@@ -92,10 +93,10 @@ function showSelectionBar(text, rangeRect) {
 
   barEl.innerHTML = `
     <div class="tl-sel-actions">
-      <button type="button" class="tl-icon-btn" data-tl-sel-action="translate">🌐 翻译选句</button>
-      <button type="button" class="tl-icon-btn" data-tl-sel-action="speak">🔊 朗读</button>
-      <button type="button" class="tl-icon-btn" data-tl-sel-action="copy">复制</button>
-      <button type="button" class="tl-icon-btn" data-tl-sel-action="close" title="关闭">✕</button>
+      <button type="button" class="tl-icon-btn" data-tl-sel-action="translate"><i class="fa-solid fa-language"></i><span>翻译选句</span></button>
+      <button type="button" class="tl-icon-btn" data-tl-sel-action="speak"><i class="fa-solid fa-volume-high"></i><span>朗读</span></button>
+      <button type="button" class="tl-icon-btn" data-tl-sel-action="copy"><i class="fa-regular fa-copy"></i><span>复制</span></button>
+      <button type="button" class="tl-icon-btn" data-tl-sel-action="close" title="关闭"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="tl-sel-result" data-tl-sel-result style="display:none;"></div>
   `;
@@ -122,7 +123,6 @@ function handleSelectionCheck() {
       ? range.commonAncestorContainer
       : range.commonAncestorContainer.parentElement;
 
-  // 仅在酒馆原生消息正文内划词时触发，避免干扰输入框或其他插件
   if (!container || !container.closest('.mes_text') || container.closest('.tl-trans-block')) {
     return;
   }
@@ -140,7 +140,7 @@ export function initSelectionBar() {
   mouseUpHandler = (e) => {
     if (e.target?.closest?.('.tl-sel-bar, .tl-popover, .tl-modal-backdrop')) return;
     if (selectionTimer) clearTimeout(selectionTimer);
-    selectionTimer = setTimeout(handleSelectionCheck, 40);
+    selectionTimer = setTimeout(handleSelectionCheck, 60);
   };
 
   mouseDownHandler = (e) => {
