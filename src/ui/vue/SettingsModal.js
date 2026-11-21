@@ -39,7 +39,7 @@ export const SettingsModal = defineComponent({
       translator: 'google',
       customAi: { baseUrl: '', apiKey: '', model: '' },
       tts: { engine: 'auto', rate: 1, enAccent: 'us' },
-      ui: { showWordUnderline: true, autoShowMesButtons: true },
+      ui: { showWordUnderline: true, autoShowMesButtons: true, autoTranslateNewMessage: false },
       excludeText: '',
     });
 
@@ -250,6 +250,11 @@ export const SettingsModal = defineComponent({
                 v-model="draft.promptInjection.promptText"
                 placeholder="输入要注入给 AI 的外语回复提示词"
               ></textarea>
+            </div>
+
+            <div class="tl-field-row">
+              <span class="tl-label" style="margin:0;">输出后自动逐段双语翻译</span>
+              <input type="checkbox" v-model="draft.ui.autoTranslateNewMessage" />
             </div>
 
             <div class="tl-field-row">

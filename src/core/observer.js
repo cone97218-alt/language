@@ -1,7 +1,7 @@
 import { getHostDocument, getEventApi } from './host.js';
 import { getConfig } from '../config.js';
 import { tokenizeMessageText, untokenizeElement } from './tokenizer.js';
-import { attachMessageButtons } from '../ui/messageControls.js';
+import { attachMessageButtons, autoTranslateMessage } from '../ui/messageControls.js';
 
 let chatObserver = null;
 let debounceTimer = null;
@@ -36,13 +36,29 @@ export function clearAllProcessedMessages() {
   doc.querySelectorAll('#chat .mes .tl-mes-footer').forEach((el) => el.remove());
 }
 
-function scheduleProcess(delay = 280) {
+function triggerAutoTranslateLatestAi() {
+  const cfg = getConfig();
+  if (!cfg.enabled || !cfg.ui?.autoTranslateNewMessage) return;
+  const doc = getHostDocument();
+  const aiMessages = [...doc.querySelectorAll('#chat .mes')].filter(
+    (el) => el.getAttribute('is_user') !== 'true'
+  );
+  const latest = aiMessages[aiMessages.length - 1];
+  if (!latest) return;
+  processMessageElement(latest);
+  autoTranslateMessage(latest).catch(() => {});
+}
+
+function scheduleProcess(delay = 280, withAutoTranslate = false) {
   if (debounceTimer) clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
     debounceTimer = null;
     if (isGenerating) return;
     if (!getConfig().enabled) return;
     processAllMessages();
+    if (withAutoTranslate) {
+      triggerAutoTranslateLatestAi();
+    }
   }, delay);
 }
 
@@ -110,17 +126,17 @@ export function startObserving() {
     });
     safeBindEvent(tavern_events.GENERATION_ENDED, () => {
       isGenerating = false;
-      scheduleProcess(200);
+      scheduleProcess(220, true);
     });
     safeBindEvent(tavern_events.MESSAGE_RECEIVED, () => {
       isGenerating = false;
-      scheduleProcess(220);
+      scheduleProcess(240, true);
     });
     safeBindEvent(tavern_events.MESSAGE_UPDATED, () => {
       scheduleProcess(200);
     });
     safeBindEvent(tavern_events.MESSAGE_SWIPED, () => {
-      scheduleProcess(250);
+      scheduleProcess(260, true);
     });
     safeBindEvent(tavern_events.CHAT_CHANGED, () => {
       isGenerating = false;
@@ -130,7 +146,7 @@ export function startObserving() {
   if (iframe_events) {
     safeBindEvent(iframe_events.STREAM_TOKEN_RECEIVED_FULLY, () => {
       isGenerating = false;
-      scheduleProcess(260);
+      scheduleProcess(260, true);
     });
   }
 

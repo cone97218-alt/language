@@ -234,3 +234,26 @@ export function attachMessageButtons(mesEl) {
   footer.appendChild(speakBtn);
   mesText.appendChild(footer);
 }
+
+/**
+ * 输出完成后自动全文逐段双语翻译（幂等，避免重复翻译同一条消息）
+ */
+export async function autoTranslateMessage(mesEl) {
+  if (!mesEl) return;
+  const mesText = mesEl.querySelector('.mes_text');
+  if (!mesText) return;
+  if (mesText.querySelector('.tl-trans-block')) return;
+  if (mesEl.dataset.tlAutoTranslating === '1') return;
+
+  attachMessageButtons(mesEl);
+  const transBtn = mesEl.querySelector('.tl-footer-icon[data-tl-mes-action="translate"]');
+  mesEl.dataset.tlAutoTranslating = '1';
+  try {
+    await toggleParagraphTranslations(mesEl, transBtn || {
+      classList: { add() {}, toggle() {} },
+      innerHTML: '',
+    });
+  } finally {
+    delete mesEl.dataset.tlAutoTranslating;
+  }
+}

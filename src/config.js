@@ -1,6 +1,6 @@
 import { getHostWindow } from './core/host.js';
 
-export const VERSION = '2.2.2';
+export const VERSION = '2.3.0';
 export const STORAGE_KEY = 'tavern_language_config_v1';
 
 // 系统级始终跳过的非正文标签（防止破坏脚本、样式与插件自身节点）
@@ -74,8 +74,9 @@ export const DEFAULT_CONFIG = {
   },
   // 界面显示细节
   ui: {
-    showWordUnderline: true, // 鼠标悬停时轻柔下划线提示
-    autoShowMesButtons: true, // 在原生消息栏添加「译」「读」按钮
+    showWordUnderline: true,
+    autoShowMesButtons: true,
+    autoTranslateNewMessage: false,
   },
 };
 
