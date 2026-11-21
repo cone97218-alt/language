@@ -1,57 +1,112 @@
 /**
- * 酒馆沉浸式外语学习插件 — 实时无缓存远程热更新引导器
- * 使用方法：完整复制本段代码到「酒馆助手 (JS-Slash-Runner) -> 全局脚本」并启用即可。
- * 原理：先获取 main 分支最新 commit SHA，再用不可变 SHA 走 jsDelivr 极速拉取，彻底绕开 CDN 分支缓存！
+ * 酒馆沉浸式外语学习插件 — 毫秒级秒开 + 后台无感热更新引导器 (SWR)
+ * 原理：
+ * 1. 刷新酒馆时直接从本地缓存 0ms 瞬时启动（不等网络，与本地扩展一样快）；
+ * 2. 同时在后台静默比对 GitHub main 最新 commit SHA；
+ * 3. 若发现新版本，多线路并行竞速下载并自动热替换，下次启动继续秒开。
  */
 (async () => {
   const REPO = 'cone97218-alt/language';
   const BRANCH = 'main';
   const ENTRY = 'dist/tavern-language.js';
+  const CACHE_CODE_KEY = 'tl_loader_code_v2';
+  const CACHE_SHA_KEY = 'tl_loader_sha_v2';
 
-  // 1. 实时获取 main 最新 commit SHA（绕过 jsDelivr @main 长达 12 小时的边缘缓存）
-  let ref = BRANCH;
-  try {
-    const metaRes = await fetch(`https://api.github.com/repos/${REPO}/commits/${BRANCH}`, {
-      headers: { Accept: 'application/vnd.github+json' },
-      cache: 'no-store',
-    });
-    if (metaRes.ok) {
-      const meta = await metaRes.json();
-      if (meta && meta.sha) ref = meta.sha;
-    }
-  } catch {
-    // 若 GitHub API 限流或不可达，继续走备用源
-  }
-
-  const ts = Date.now();
-  const SOURCES = [
-    `https://cdn.jsdelivr.net/gh/${REPO}@${ref}/${ENTRY}`,
-    `https://fastly.jsdelivr.net/gh/${REPO}@${ref}/${ENTRY}`,
-    `https://raw.githubusercontent.com/${REPO}/${ref}/${ENTRY}?t=${ts}`,
-  ];
-
-  for (const url of SOURCES) {
+  const hostWin = (() => {
     try {
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) continue;
-      const code = await res.text();
-      const blobUrl = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
-      try {
-        const mod = await import(blobUrl);
-        if (mod && typeof mod.init === 'function') {
-          mod.init();
-          return;
-        }
-      } finally {
-        URL.revokeObjectURL(blobUrl);
+      return window.parent && window.parent.document ? window.parent : window;
+    } catch {
+      return window;
+    }
+  })();
+
+  async function bootFromCode(code, opts = {}) {
+    const blobUrl = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+    try {
+      const mod = await import(blobUrl);
+      if (mod && typeof mod.init === 'function') {
+        mod.init(opts);
+        return true;
       }
-    } catch (err) {
-      console.warn('[TavernLanguage Loader] 线路加载失败，尝试备用源:', url, err);
+    } finally {
+      URL.revokeObjectURL(blobUrl);
+    }
+    return false;
+  }
+
+  async function fetchFastestCode(ref) {
+    const ts = Date.now();
+    const urls = [
+      `https://cdn.jsdelivr.net/gh/${REPO}@${ref}/${ENTRY}`,
+      `https://fastly.jsdelivr.net/gh/${REPO}@${ref}/${ENTRY}`,
+      `https://raw.githubusercontent.com/${REPO}/${ref}/${ENTRY}?t=${ts}`,
+    ];
+    return Promise.any(
+      urls.map(async (url) => {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        if (!text || text.length < 1000) throw new Error('empty bundle');
+        return text;
+      })
+    );
+  }
+
+  async function fetchLatestSha() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const res = await fetch(`https://api.github.com/repos/${REPO}/commits/${BRANCH}`, {
+        headers: { Accept: 'application/vnd.github+json' },
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (!res.ok) return '';
+      const data = await res.json();
+      return data?.sha || '';
+    } catch {
+      return '';
+    } finally {
+      clearTimeout(timer);
     }
   }
 
-  const toast = window.toastr || window.parent?.toastr;
-  if (toast) {
-    toast.error('远程加载失败，请检查网络连接或稍后刷新重试', '酒馆外语学习');
+  // 1. 命中本地缓存：立即 0ms 秒开，绝不阻塞等待网络
+  let bootedFromCache = false;
+  let cachedSha = '';
+  try {
+    const cachedCode = hostWin.localStorage.getItem(CACHE_CODE_KEY);
+    cachedSha = hostWin.localStorage.getItem(CACHE_SHA_KEY) || '';
+    if (cachedCode) {
+      bootedFromCache = await bootFromCode(cachedCode);
+    }
+  } catch (err) {
+    console.warn('[TavernLanguage Loader] 本地缓存启动失败，转远程拉取:', err);
+  }
+
+  // 2. 后台静默检查更新（或首次无缓存时拉取）
+  try {
+    const latestSha = await fetchLatestSha();
+    if (bootedFromCache && (!latestSha || latestSha === cachedSha)) {
+      return; // 已是最新版，零额外流量
+    }
+
+    const ref = latestSha || BRANCH;
+    const freshCode = await fetchFastestCode(ref);
+    try {
+      hostWin.localStorage.setItem(CACHE_CODE_KEY, freshCode);
+      if (latestSha) hostWin.localStorage.setItem(CACHE_SHA_KEY, latestSha);
+    } catch {
+      // 忽略存储配额限制
+    }
+
+    // 首次加载或发现新版本：立即热替换运行新版
+    await bootFromCode(freshCode);
+  } catch (err) {
+    if (!bootedFromCache) {
+      const toast = window.toastr || hostWin.toastr;
+      if (toast) toast.error('远程加载失败，请检查网络后刷新重试', '外语学习');
+      console.error('[TavernLanguage Loader] 首次加载失败:', err);
+    }
   }
 })();

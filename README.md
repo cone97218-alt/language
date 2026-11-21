@@ -15,46 +15,86 @@
   const REPO = 'cone97218-alt/language';
   const BRANCH = 'main';
   const ENTRY = 'dist/tavern-language.js';
+  const CACHE_CODE_KEY = 'tl_loader_code_v2';
+  const CACHE_SHA_KEY = 'tl_loader_sha_v2';
 
-  // 先实时获取 main 最新 commit SHA，绕过 jsDelivr @main 分支边缘缓存
-  let ref = BRANCH;
-  try {
-    const metaRes = await fetch(`https://api.github.com/repos/${REPO}/commits/${BRANCH}`, {
-      headers: { Accept: 'application/vnd.github+json' },
-      cache: 'no-store',
-    });
-    if (metaRes.ok) {
-      const meta = await metaRes.json();
-      if (meta && meta.sha) ref = meta.sha;
-    }
-  } catch {}
-
-  const ts = Date.now();
-  const SOURCES = [
-    `https://cdn.jsdelivr.net/gh/${REPO}@${ref}/${ENTRY}`,
-    `https://fastly.jsdelivr.net/gh/${REPO}@${ref}/${ENTRY}`,
-    `https://raw.githubusercontent.com/${REPO}/${ref}/${ENTRY}?t=${ts}`,
-  ];
-
-  for (const url of SOURCES) {
+  const hostWin = (() => {
     try {
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) continue;
-      const code = await res.text();
-      const blobUrl = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
-      try {
-        const mod = await import(blobUrl);
-        if (mod && typeof mod.init === 'function') {
-          mod.init();
-          return;
-        }
-      } finally {
-        URL.revokeObjectURL(blobUrl);
+      return window.parent && window.parent.document ? window.parent : window;
+    } catch {
+      return window;
+    }
+  })();
+
+  async function bootFromCode(code, opts = {}) {
+    const blobUrl = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+    try {
+      const mod = await import(blobUrl);
+      if (mod && typeof mod.init === 'function') {
+        mod.init(opts);
+        return true;
       }
-    } catch (err) {
-      console.warn('[TavernLanguage Loader] 线路加载失败，尝试备用源:', url, err);
+    } finally {
+      URL.revokeObjectURL(blobUrl);
+    }
+    return false;
+  }
+
+  async function fetchFastestCode(ref) {
+    const ts = Date.now();
+    const urls = [
+      `https://cdn.jsdelivr.net/gh/${REPO}@${ref}/${ENTRY}`,
+      `https://fastly.jsdelivr.net/gh/${REPO}@${ref}/${ENTRY}`,
+      `https://raw.githubusercontent.com/${REPO}/${ref}/${ENTRY}?t=${ts}`,
+    ];
+    return Promise.any(
+      urls.map(async (url) => {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        if (!text || text.length < 1000) throw new Error('empty bundle');
+        return text;
+      })
+    );
+  }
+
+  async function fetchLatestSha() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const res = await fetch(`https://api.github.com/repos/${REPO}/commits/${BRANCH}`, {
+        headers: { Accept: 'application/vnd.github+json' },
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (!res.ok) return '';
+      const data = await res.json();
+      return data?.sha || '';
+    } catch {
+      return '';
+    } finally {
+      clearTimeout(timer);
     }
   }
+
+  let bootedFromCache = false;
+  let cachedSha = '';
+  try {
+    const cachedCode = hostWin.localStorage.getItem(CACHE_CODE_KEY);
+    cachedSha = hostWin.localStorage.getItem(CACHE_SHA_KEY) || '';
+    if (cachedCode) bootedFromCache = await bootFromCode(cachedCode);
+  } catch {}
+
+  try {
+    const latestSha = await fetchLatestSha();
+    if (bootedFromCache && (!latestSha || latestSha === cachedSha)) return;
+    const freshCode = await fetchFastestCode(latestSha || BRANCH);
+    try {
+      hostWin.localStorage.setItem(CACHE_CODE_KEY, freshCode);
+      if (latestSha) hostWin.localStorage.setItem(CACHE_SHA_KEY, latestSha);
+    } catch {}
+    await bootFromCode(freshCode);
+  } catch {}
 })();
 ```
 
