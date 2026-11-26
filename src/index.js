@@ -20,6 +20,7 @@ import './languages/fr.js';
 
 // 注册内置可组装词典源
 import { registerDictionary, listDictionaries, lookupWord } from './dictionaries/registry.js';
+import { initOfflineEnDict } from './dictionaries/offlineEn.js';
 import './dictionaries/googleDict.js';
 import './dictionaries/freeDictionary.js';
 import './dictionaries/jotoba.js';
@@ -98,6 +99,11 @@ export function init(options = {}) {
   mountHamburgerEntries();
   syncPromptInjection();
   startObserving();
+
+  // 后台异步预热本地离线英语词库（不阻塞插件 0ms 启动）
+  setTimeout(() => {
+    initOfflineEnDict().catch(() => {});
+  }, 250);
 
   unsubscribeConfig = onConfigChange((cfg) => {
     syncConfigToState();

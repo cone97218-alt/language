@@ -250,10 +250,33 @@ export async function lookupWord(word, options = {}) {
       : chain.filter((id) => id !== 'ai-context' || chain.length === 1);
 
     let foundEntry = null;
+    let usedLocalProvider = false;
 
-    if (autoChain.length >= 2 && !preferredSource) {
-      // 并行竞速前 2 个词典源，谁先返回有效词条立刻使用
-      const racers = autoChain.slice(0, 2).map((id) => {
+    // 优先检查本地离线词典（<1ms 瞬开，命中后不发任何网络请求）
+    if (!preferredSource) {
+      const localIds = autoChain.filter((id) => dictMap.get(id)?.isLocal);
+      for (const id of localIds) {
+        const provider = dictMap.get(id);
+        if (!provider) continue;
+        try {
+          foundEntry = await queryProvider(provider, rawWord, ctx);
+          if (foundEntry) {
+            usedLocalProvider = true;
+            break;
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    const remoteChain = preferredSource
+      ? autoChain
+      : autoChain.filter((id) => !dictMap.get(id)?.isLocal);
+
+    if (!foundEntry && remoteChain.length >= 2 && !preferredSource) {
+      // 并行竞速前 2 个在线词典源，谁先返回有效词条立刻使用
+      const racers = remoteChain.slice(0, 2).map((id) => {
         const provider = dictMap.get(id);
         if (!provider) return Promise.reject(new Error('missing'));
         return queryProvider(provider, rawWord, ctx).then((res) => {
@@ -268,9 +291,9 @@ export async function lookupWord(word, options = {}) {
         foundEntry = null;
       }
 
-      // 若前 2 个都未命中，顺序尝试剩余词典
-      if (!foundEntry && autoChain.length > 2) {
-        for (const id of autoChain.slice(2)) {
+      // 若前 2 个都未命中，顺序尝试剩余在线词典
+      if (!foundEntry && remoteChain.length > 2) {
+        for (const id of remoteChain.slice(2)) {
           const provider = dictMap.get(id);
           if (!provider) continue;
           try {
@@ -281,8 +304,8 @@ export async function lookupWord(word, options = {}) {
           }
         }
       }
-    } else {
-      for (const id of autoChain) {
+    } else if (!foundEntry) {
+      for (const id of remoteChain) {
         const provider = dictMap.get(id);
         if (!provider) continue;
         try {
@@ -295,7 +318,7 @@ export async function lookupWord(word, options = {}) {
     }
 
     if (foundEntry) {
-      // 第一时间回调渲染（极速词典此时已含全部中文释义，直接一步到位）
+      // 第一时间回调渲染（本地词典/极速词典此时已含全部中文释义，直接一步到位）
       if (onUpdate) onUpdate({ ...foundEntry }, false);
 
       // 若词典本身是纯英文释义（如 FreeDict / Wiktionary / Jotoba），后台补全中文
@@ -307,7 +330,10 @@ export async function lookupWord(word, options = {}) {
         if (onUpdate) onUpdate({ ...foundEntry }, false);
       }
 
-      setCache(cacheKey, foundEntry);
+      // 本地离线词典本身已在内存 Map 中 <0.1ms 命中，无需占满 localStorage LRU 缓存
+      if (!usedLocalProvider) {
+        setCache(cacheKey, foundEntry);
+      }
       return foundEntry;
     }
 

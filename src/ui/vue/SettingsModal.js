@@ -1,4 +1,4 @@
-import { defineComponent, reactive, computed, watch } from 'vue';
+import { defineComponent, reactive, computed, watch, onUnmounted } from 'vue';
 import { appState, closeModal, syncConfigToState } from './appState.js';
 import { VocabBookView } from './VocabBookView.js';
 import { notify } from '../../core/host.js';
@@ -10,6 +10,11 @@ import {
   getDictionaryChainForLang,
   clearDictionaryCache,
 } from '../../dictionaries/registry.js';
+import {
+  initOfflineEnDict,
+  getOfflineDictStatus,
+  onOfflineDictStatusChange,
+} from '../../dictionaries/offlineEn.js';
 import { listTranslators, clearTranslationCache } from '../../translators/registry.js';
 
 const QUICK_EXCLUDE_CHIPS = [
@@ -28,6 +33,31 @@ export const SettingsModal = defineComponent({
   components: { VocabBookView },
   setup() {
     const modal = appState.modal;
+    const offlineDict = reactive(getOfflineDictStatus());
+    const unsubOffline = onOfflineDictStatusChange((snap) => {
+      offlineDict.status = snap.status;
+      offlineDict.count = snap.count;
+      offlineDict.error = snap.error;
+    });
+    onUnmounted(() => unsubOffline());
+
+    const offlineStatusText = computed(() => {
+      if (offlineDict.status === 'ready') return `已就绪 · ${offlineDict.count.toLocaleString()} 词`;
+      if (offlineDict.status === 'downloading') return '下载中...';
+      if (offlineDict.status === 'loading') return '加载中...';
+      if (offlineDict.status === 'error') return `未就绪 · ${offlineDict.error || '网络异常'}`;
+      return '未加载';
+    });
+
+    async function onRefreshOfflineDict() {
+      if (offlineDict.status === 'downloading') return;
+      const res = await initOfflineEnDict({ forceDownload: true });
+      if (res.status === 'ready') {
+        notify(`本地词库已更新（${res.count.toLocaleString()} 词）`, 'success');
+      } else {
+        notify(`本地词库下载失败：${res.error || '请检查网络'}`, 'error');
+      }
+    }
     const draft = reactive({
       enabled: true,
       targetLang: 'en',
@@ -174,6 +204,9 @@ export const SettingsModal = defineComponent({
       toggleDict,
       moveDict,
       addExcludeChip,
+      offlineDict,
+      offlineStatusText,
+      onRefreshOfflineDict,
       onClearCache,
       onSave,
     };
@@ -270,6 +303,22 @@ export const SettingsModal = defineComponent({
 
           <!-- Tab 2: 词典与翻译 -->
           <div v-else-if="modal.activeTab === 'dict'">
+            <div v-if="draft.targetLang === 'en'" class="tl-field-row">
+              <div style="min-width:0;">
+                <div class="tl-label" style="margin:0;">本地离线英语词库</div>
+                <div class="tl-dict-row-desc">{{ offlineStatusText }}</div>
+              </div>
+              <button
+                type="button"
+                class="tl-icon-btn"
+                :disabled="offlineDict.status === 'downloading'"
+                @click="onRefreshOfflineDict"
+                title="重新下载离线词库"
+              >
+                <i class="fa-solid fa-rotate" :class="{ 'fa-spin': offlineDict.status === 'downloading' || offlineDict.status === 'loading' }"></i>
+              </button>
+            </div>
+
             <div class="tl-field">
               <label class="tl-label">词典优先级</label>
               <div class="tl-dict-list">

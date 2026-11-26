@@ -1,6 +1,6 @@
 import { getHostWindow } from './core/host.js';
 
-export const VERSION = '2.3.0';
+export const VERSION = '2.4.0';
 export const STORAGE_KEY = 'tavern_language_config_v1';
 
 // 系统级始终跳过的非正文标签（防止破坏脚本、样式与插件自身节点）
@@ -50,7 +50,7 @@ export const DEFAULT_CONFIG = {
   ],
   // 每个语种启用的词典链（按优先级组装，可调整顺序与开关）
   dictionaryChains: {
-    en: ['google-dict', 'free-dict', 'wiktionary', 'ai-context'],
+    en: ['offline-en', 'google-dict', 'free-dict', 'wiktionary', 'ai-context'],
     ja: ['google-dict', 'jotoba', 'wiktionary', 'ai-context'],
     fr: ['google-dict', 'wiktionary', 'ai-context'],
   },
@@ -103,7 +103,8 @@ export function loadConfig() {
     if (raw) {
       const parsed = JSON.parse(raw);
       currentConfig = deepMerge(DEFAULT_CONFIG, parsed);
-      // 平滑升级：为旧版配置自动将「极速词典」置顶，立刻提速
+      let migrated = false;
+      // 平滑升级：为旧版配置自动将「极速词典」置顶
       if (!parsed._migratedGoogleDict) {
         for (const code of ['en', 'ja', 'fr']) {
           const chain = currentConfig.dictionaryChains?.[code];
@@ -112,6 +113,18 @@ export function loadConfig() {
           }
         }
         currentConfig._migratedGoogleDict = true;
+        migrated = true;
+      }
+      // 平滑升级：为英语自动将「本地词典」置顶，实现 0ms 离线瞬开
+      if (!parsed._migratedOfflineEn) {
+        const enChain = currentConfig.dictionaryChains?.en;
+        if (Array.isArray(enChain) && !enChain.includes('offline-en')) {
+          currentConfig.dictionaryChains.en = ['offline-en', ...enChain];
+        }
+        currentConfig._migratedOfflineEn = true;
+        migrated = true;
+      }
+      if (migrated) {
         try {
           getHostWindow().localStorage.setItem(STORAGE_KEY, JSON.stringify(currentConfig));
         } catch {
@@ -121,6 +134,7 @@ export function loadConfig() {
     } else {
       currentConfig = deepMerge(DEFAULT_CONFIG, {});
       currentConfig._migratedGoogleDict = true;
+      currentConfig._migratedOfflineEn = true;
     }
   } catch (err) {
     console.warn('[TavernLanguage] 读取配置失败，使用默认配置:', err);
